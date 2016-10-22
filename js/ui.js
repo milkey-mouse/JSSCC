@@ -37,6 +37,10 @@ channels = [];
 for (var i = 0; i < 32; i++) {
     channels.push({
         mute: false,
+        volume: 0.8,
+        expression: 1,
+        envelope: 0,
+        output: 0,
         pitchbend: 0,
         panpot: 0,
         percussion: 0,
@@ -86,7 +90,7 @@ function drawText(font, text, x, y, color) {
         }
         var charIdx = maps[font].indexOf(text[i]);
         if (charIdx === -1 || charIdx >= fonts[font].length) {
-            console.error("could not print character '" + text[i] + "'");
+            console.warn("could not print character '" + text[i] + "'");
             x += fonts.space_width + fonts.letter_spacing;
         } else {
             var charImg = fonts[font][charIdx];
@@ -106,7 +110,7 @@ function drawTextRTL(font, text, x, y, color) {
         }
         var charIdx = maps[font].indexOf(text[i]);
         if (charIdx === -1 || charIdx >= fonts[font].length) {
-            console.log("warning: could not print character '" + text[i] + "'");
+            console.warn("could not print character '" + text[i] + "'");
             x -= fonts.space_width + fonts.letter_spacing;
         } else {
             var charImg = fonts[font][charIdx];
@@ -122,18 +126,21 @@ function polyToColor(poly) {
     return palette.foreground; // TODO
 }
 
-function drawChannel(idx, muted, poly, pc, freq) {
+function drawChannel(idx) {
     var x = ((idx % 16) * 36) + 58;
     var y = (Math.floor(idx / 16) * 168) + 49;
-    if (freq === undefined) { console.error("wat"); }
-    ctx.strokeStyle = palette.foreground;
+    var chan = channels[idx];
     ctx.lineWidth = 1;
     ctx.setTransform(scale, 0, 0, scale, 0.5, 0.5);
 
+    ctx.fillStyle = palette.background;
+    ctx.fillRect(x, y, 33, 158);
+    
     // mute/poly
+    ctx.strokeStyle = palette.foreground;
     ctx.strokeRect(x, y, 33, 13);
     ctx.strokeRect(x+16, y+2, 15, 9);
-    ctx.fillStyle = polyToColor(poly);
+    ctx.fillStyle = polyToColor(chan.poly);
     ctx.fillRect(x+18, y+4, 11, 5);
     ctx.strokeStyle = palette.dark;
     ctx.strokeRect(x+18, y+4, 11, 5);
@@ -176,13 +183,29 @@ function drawChannel(idx, muted, poly, pc, freq) {
     ctx.fillRect(x+20, y+151, 11, 5);
     ctx.strokeRect(x+20, y+151, 11, 5);
 
+    //VU meters
+    for(var i = 0; i < 15; i++) {
+        // volume
+        ctx.strokeStyle = chan.volume >= (15-i)/15 ? palette.light : palette.dark;
+        ctx.strokeRect(x+4, y+(i*3+26), 1, 1);
+        // expression
+        ctx.strokeStyle = chan.expression >= (15-i)/15 ? palette.light : palette.dark;
+        ctx.strokeRect(x+9, y+(i*3+26), 1, 1);
+        // sw. envelope
+        ctx.strokeStyle = chan.envelope >= (15-i)/15 ? palette.light : palette.dark;
+        ctx.strokeRect(x+14, y+(i*3+26), 1, 1);
+        // output
+        ctx.strokeStyle = chan.output >= (15-i)/15 ? palette.light : palette.dark;
+        ctx.strokeRect(x+19, y+(i*3+26), 10, 1);
+    }
+
     ctx.setTransform(scale, 0, 0, scale, 0, 0);    
 
     var old_spacing = fonts.letter_spacing;
     fonts.letter_spacing = 0;
 
     //percussion (pc) #
-    var pcStr = "" + pc;
+    var pcStr = "" + chan.percussion;
     pcStr = "000".substring(pcStr.length) + pcStr;
     drawTextRTL("small", pcStr, x+32, y+99, "#FFF");
 
@@ -190,12 +213,12 @@ function drawChannel(idx, muted, poly, pc, freq) {
     drawTextRTL("small", "000", x+32, y+110, "#FFF");
 
     // frequency
-    var freqStr = "" + freq;
+    var freqStr = "" + chan.freq;
     freqStr = "00000".substring(freqStr.length) + freqStr;
     drawTextRTL("small", freqStr, x+32, y+140, "#FFF");
 
     // mute
-    ctx.drawImage(muted ? images.muted : images.unmuted, x+3, y+3);
+    ctx.drawImage(chan.mute ? images.muted : images.unmuted, x+3, y+3);
     
     // labels for vu meters
     ctx.drawImage(images.vulabels, x+3, y+18);
@@ -205,7 +228,7 @@ function drawChannel(idx, muted, poly, pc, freq) {
 
 function drawChannels() {
     for (var idx = 0; idx < 32; idx++) {
-        drawChannel(idx, channels[idx].mute, 0, channels[idx].percussion, channels[idx].freq);
+        drawChannel(idx);
     }
 }
 
@@ -298,6 +321,7 @@ fonts.onLoaded = function() {
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.fillStyle = palette.foreground;
     ctx.fillText("Loading images...", ctx.canvas.width/2, ctx.canvas.height/2);
+    loadImage("sparkles");
     loadImage("vulabels");
     loadImage("pointer");
     loadImage("unmuted");
@@ -321,9 +345,8 @@ function createMuteButtons() {
                 var x = (x - 58) / 36;
                 var y = (y - 49) / 168;
                 var idx = (Math.round(y)*16)+Math.floor(x);
-                var chan = channels[idx];
-                chan.mute = !chan.mute;
-                drawChannel(idx, chan.mute, chan.poly, chan.percussion, chan.freq);
+                channels[idx].mute = !channels[idx].mute;
+                drawChannel(idx);
             },
             onenter: function() { },
             onexit: function() { }
@@ -355,6 +378,7 @@ function  drawTextured(_x, _y, w, h) {
 
 function drawLogos() {
     ctx.drawImage(images.logo, 15, 10);
+    ctx.drawImage(images.sparkles, 424, 4);
     drawTextured(358, 410, 64, 32);
     ctx.drawImage(images.midi, 436, 412);
     ctx.drawImage(images.gs, 482, 413);
@@ -400,14 +424,37 @@ function drawLabels() {
     drawText("small", "TB", 184, 423, palette.foreground);    
 }
 
-function drawSongInfo(position) {
+function drawBuffer(buffer) {
     ctx.setTransform(scale, 0, 0, scale, 0.5, 0.5);
-
-    // buffer
-    ctx.fillStyle = palette.light;
-    ctx.strokeStyle = palette.foreground;
+    ctx.fillStyle = palette.background;
     ctx.fillRect(412, 32, 219, 9);
+    ctx.fillStyle = palette.light;
+    ctx.fillRect(412, 32, Math.round(219*buffer), 9);
+    ctx.strokeStyle = palette.light;
+    ctx.strokeRect(412+Math.round(219*buffer), 32, 1, 9);
+    ctx.strokeStyle = palette.foreground;
     ctx.strokeRect(412, 32, 219, 9);
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+}
+
+function drawPositionSlider(position) {
+    ctx.setTransform(scale, 0, 0, scale, 0.5, 0.5);
+    ctx.fillStyle = palette.background;
+    ctx.fillRect(58, 402, 236, 16);
+    ctx.fillStyle = palette.dark;
+    ctx.fillRect(58, 402, Math.round(236*position), 16);
+    ctx.strokeStyle = palette.dark;
+    ctx.strokeRect(58+Math.round(236*position), 402, 1, 16);
+    ctx.strokeStyle = palette.foreground;
+    ctx.strokeRect(58, 402, 236, 16);
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+}
+
+function drawSongInfo(position, buffer) {
+    drawBuffer(buffer);
+    drawPositionSlider(position);
+
+    ctx.setTransform(scale, 0, 0, scale, 0.5, 0.5);
 
     // song name
     ctx.fillStyle = palette.dark;
@@ -415,16 +462,9 @@ function drawSongInfo(position) {
     ctx.fillRect(58, 383, 573, 14);
     ctx.strokeRect(58, 383, 573, 14);
 
-    // position slider
-    ctx.fillStyle = palette.background;
-    ctx.strokeStyle = palette.foreground;
-    ctx.fillRect(58, 402, 236, 16);
-    ctx.fillStyle = palette.dark;
-    ctx.fillRect(58, 402, 236*position, 16);
-    ctx.strokeRect(58, 402, 236, 16);
-
     // tick, bpm, tb
     ctx.fillStyle = palette.background;
+    ctx.strokeStyle = palette.foreground;
     ctx.fillRect(58, 421, 74, 9);
     ctx.strokeRect(58, 421, 74, 9);
 
@@ -499,7 +539,7 @@ images.onLoaded = function() {
     });
     createMuteButtons();
     drawLogos();
-    drawSongInfo(1);
+    drawSongInfo(0.2, 0.75);
     drawLabels();
     drawChannels();
 };
