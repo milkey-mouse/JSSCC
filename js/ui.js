@@ -37,15 +37,16 @@ channels = [];
 for (var i = 0; i < 32; i++) {
     channels.push({
         mute: false,
-        volume: 0.8,
-        expression: 1,
-        envelope: 0,
-        output: 0,
-        pitchbend: 0,
-        panpot: 0,
+        volume: null,
+        expression: null,
+        envelope: null,
+        output: null,
+        pitchbend: null,
+        panpot: null,
         percussion: 0,
         cc0: 0,
-        freq: 0
+        freq: 0,
+        wave: null
     });
 }
 
@@ -126,6 +127,24 @@ function polyToColor(poly) {
     return palette.foreground; // TODO
 }
 
+function drawPan(x, y, val) {
+    for(var i = -8; i <= 8; i++) {
+        if (i === 0) {
+            continue;
+        } else if (val === null) {
+            ctx.strokeStyle = palette.dark; 
+        } else if (Math.abs(i) === 1) {
+            ctx.strokeStyle = "#ff9f00";
+        } else if(val > 0 === i > 0 && Math.abs(val) >= Math.abs(i/8)) {
+            ctx.strokeStyle = palette.light;
+        } else {
+            ctx.strokeStyle = palette.dark;
+        }
+        var height = Math.floor(Math.abs(i) / 2 + 1.5);
+        ctx.strokeRect(x+(i*2)+(i > 0 ? 13 : 16), y+5-height, 0, height);
+    }
+}
+
 function drawChannel(idx) {
     var x = ((idx % 16) * 36) + 58;
     var y = (Math.floor(idx / 16) * 168) + 49;
@@ -198,6 +217,10 @@ function drawChannel(idx) {
         ctx.strokeStyle = chan.output >= (15-i)/15 ? palette.light : palette.dark;
         ctx.strokeRect(x+19, y+(i*3+26), 10, 1);
     }
+
+    // draw pitchbend, panpot
+    drawPan(x+2, y+77, chan.pitchbend);
+    drawPan(x+2, y+88, chan.panpot);    
 
     ctx.setTransform(scale, 0, 0, scale, 0, 0);    
 
