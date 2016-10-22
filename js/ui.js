@@ -1,5 +1,5 @@
 fonts = {
-    space_width: 1,
+    space_width: 2,
     letter_spacing: 1,
     unloaded: 0,
     onLoaded: function() {}
@@ -7,24 +7,43 @@ fonts = {
 
 maps = {
     large: "!\"#$%\&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
-    medium: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,'()+",
-    small: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    medium: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,'()+/:-",
+    small: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ./':"
 };
 
+//escapes the double quote & leading space. stupid hack
 row_escapes = {
-    large: [3, 4] //escapes the double quote. stupid hack
+    large: [0, 4, 5],
+    medium: [0,],
+    small: [0,]
 };
 
 palette = {
     background: "#df825f",
     foreground: "#5c1f09",
-    light: "#B2593F"
+    dark: "#b2593f",
+    light: "#ffd2a2"
 };
 
 images = {
     unloaded: 0,
     onLoaded: function() {}
 };
+
+elements = [];
+
+channels = [];
+
+for (var i = 0; i < 32; i++) {
+    channels.push({
+        mute: false,
+        pitchbend: 0,
+        panpot: 0,
+        percussion: 0,
+        cc0: 0,
+        freq: 0
+    });
+}
 
 function hexToRgb(hex) {
     // https://stackoverflow.com/a/5624139
@@ -42,19 +61,19 @@ function hexToRgb(hex) {
     } : null;
 }
 
-function replaceColors(imgdata, bgdata, color) {
+function replaceColors(outdata, imgdata, bgdata, color) {
     var f = hexToRgb(color);
     for (var i = 0; i < imgdata.length; i+=4) {
         if(imgdata[i] === 0) {
-            imgdata[i] = f.r;
-            imgdata[i+1] = f.g;
-            imgdata[i+2] = f.b;
-            imgdata[i+3] = 255;
+            outdata[i] = f.r;
+            outdata[i+1] = f.g;
+            outdata[i+2] = f.b;
+            outdata[i+3] = 255;
         } else {
-            imgdata[i] = bgdata[i];
-            imgdata[i+1] = bgdata[i+1];
-            imgdata[i+2] = bgdata[i+2];
-            imgdata[i+3] = bgdata[i+3];
+            outdata[i] = bgdata[i];
+            outdata[i+1] = bgdata[i+1];
+            outdata[i+2] = bgdata[i+2];
+            outdata[i+3] = bgdata[i+3];
         }
     }
 }
@@ -67,33 +86,59 @@ function drawText(font, text, x, y, color) {
         }
         var charIdx = maps[font].indexOf(text[i]);
         if (charIdx === -1 || charIdx >= fonts[font].length) {
-            console.log("warning: could not print character '" + text[i] + "'");
+            console.error("could not print character '" + text[i] + "'");
             x += fonts.space_width + fonts.letter_spacing;
         } else {
             var charImg = fonts[font][charIdx];
-            var recolored = charImg.data.slice(0);
-            replaceColors(recolored, ctx.getImageData(x, y, charImg.width, charImg.height).data, color);
-            ctx.putImageData(new ImageData(recolored, charImg.width, charImg.height), x, y);
+            var composited = ctx.createImageData(charImg.width, charImg.height);
+            replaceColors(composited.data, charImg.data, ctx.getImageData(x, y, charImg.width, charImg.height).data, color);
+            ctx.putImageData(composited, x, y);
             x += charImg.width + fonts.letter_spacing;
         }
     }
 }
 
-function drawChannel(x, y) {
+function drawTextRTL(font, text, x, y, color) {
+    for(var i = text.length-1; i >= 0; i--) {
+        if (text[i] === " ") {
+            x -= fonts.space_width + fonts.letter_spacing;
+            continue;
+        }
+        var charIdx = maps[font].indexOf(text[i]);
+        if (charIdx === -1 || charIdx >= fonts[font].length) {
+            console.log("warning: could not print character '" + text[i] + "'");
+            x -= fonts.space_width + fonts.letter_spacing;
+        } else {
+            var charImg = fonts[font][charIdx];
+            var composited = ctx.createImageData(charImg.width, charImg.height);
+            replaceColors(composited.data, charImg.data, ctx.getImageData(x-charImg.width, y, charImg.width, charImg.height).data, color);
+            ctx.putImageData(composited, x-charImg.width, y);
+            x -= charImg.width + fonts.letter_spacing;
+        }
+    }
+}
+
+function polyToColor(poly) {
+    return palette.foreground; // TODO
+}
+
+function drawChannel(idx, muted, poly, pc, freq) {
+    var x = ((idx % 16) * 36) + 58;
+    var y = (Math.floor(idx / 16) * 168) + 49;
+    if (freq === undefined) { console.error("wat"); }
     ctx.strokeStyle = palette.foreground;
-    ctx.lineWidth = "1px";
-    ctx.translate(0.5, 0.5);
+    ctx.lineWidth = 1;
+    ctx.setTransform(scale, 0, 0, scale, 0.5, 0.5);
 
     // mute/poly
     ctx.strokeRect(x, y, 33, 13);
     ctx.strokeRect(x+16, y+2, 15, 9);
-    ctx.fillStyle = palette.foreground;
+    ctx.fillStyle = polyToColor(poly);
     ctx.fillRect(x+18, y+4, 11, 5);
-    ctx.strokeStyle = palette.light;
+    ctx.strokeStyle = palette.dark;
     ctx.strokeRect(x+18, y+4, 11, 5);
+    ctx.strokeStyle = palette.foreground;
     // image is done after translation is removed
-
-    ctx.strokeStyle = palette.foreground
 
     // volume/expression/sw. envelope
     ctx.strokeRect(x, y+15, 33, 58);
@@ -109,7 +154,7 @@ function drawChannel(x, y) {
     // panpot
     ctx.strokeRect(x, y+86, 33, 9);
     
-    // pc
+    // percussion (pc)
     ctx.strokeRect(x, y+97, 33, 9);
     
     // cc0
@@ -122,7 +167,7 @@ function drawChannel(x, y) {
     ctx.strokeRect(x, y+138, 33, 9);
     
     // hold/soft
-    ctx.fillStyle = "#B2593F";
+    ctx.fillStyle = palette.dark;
     ctx.strokeStyle = palette.foreground;
     ctx.strokeRect(x, y+149, 15, 9);
     ctx.fillRect(x+2, y+151, 11, 5);
@@ -131,33 +176,51 @@ function drawChannel(x, y) {
     ctx.fillRect(x+20, y+151, 11, 5);
     ctx.strokeRect(x+20, y+151, 11, 5);
 
-    ctx.translate(-0.5, -0.5);
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);    
 
-    ctx.drawImage(images["mute"], x+3, y+3);
-    ctx.drawImage(images["vu-labels"], x+3, y+18);
+    var old_spacing = fonts.letter_spacing;
+    fonts.letter_spacing = 0;
+
+    //percussion (pc) #
+    var pcStr = "" + pc;
+    pcStr = "000".substring(pcStr.length) + pcStr;
+    drawTextRTL("small", pcStr, x+32, y+99, "#FFF");
+
+    // cc0
+    drawTextRTL("small", "000", x+32, y+110, "#FFF");
+
+    // frequency
+    var freqStr = "" + freq;
+    freqStr = "00000".substring(freqStr.length) + freqStr;
+    drawTextRTL("small", freqStr, x+32, y+140, "#FFF");
+
+    // mute
+    ctx.drawImage(muted ? images.muted : images.unmuted, x+3, y+3);
+    
+    // labels for vu meters
+    ctx.drawImage(images.vulabels, x+3, y+18);
+
+    fonts.letter_spacing = old_spacing;
 }
 
 function drawChannels() {
-    for (var x = 58; x <= 598; x += 36) {
-        drawChannel(x, 49);
-    }
-    for (var x = 58; x <= 598; x += 36) {
-        drawChannel(x, 217);
+    for (var idx = 0; idx < 32; idx++) {
+        drawChannel(idx, channels[idx].mute, 0, channels[idx].percussion, channels[idx].freq);
     }
 }
 
 function setScale() {
     var width = window.innerWidth / ctx.canvas.width;
     var height = window.innerHeight / ctx.canvas.height;
-    var scale = Math.max(1, Math.floor(Math.min(width, height)));
+    scale = Math.max(1, Math.floor(Math.min(width, height)));
     ctx.canvas.style.width = ctx.canvas.width * scale + "px";
     ctx.canvas.style.height = ctx.canvas.height * scale + "px";
-    ctx.scale(scale, scale);
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
 }
 
 function loadImage(name) {
     images.unloaded++;
-    var img = new Image();
+    var img = new Image(); //document.createElement("img");
     img.onload = function() {
         images[name] = img;
         images.unloaded--;
@@ -173,7 +236,7 @@ function loadFont(name) {
     var img = new Image();
     img.onload = function() {
         fonts[name] = new Array();
-        var imgCanvas = document.createElement('canvas');
+        var imgCanvas = document.createElement("canvas");
         imgCanvas.width = img.width;
         imgCanvas.height = img.height;
         var imgCtx = imgCanvas.getContext("2d");
@@ -231,27 +294,212 @@ window.onload = function() {
 };
 
 fonts.onLoaded = function() {
-    console.log("all fonts loaded");
     ctx.fillStyle = palette.background;
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.fillStyle = palette.foreground;
     ctx.fillText("Loading images...", ctx.canvas.width/2, ctx.canvas.height/2);
-    loadImage("vu-labels");
+    loadImage("vulabels");
+    loadImage("pointer");
+    loadImage("unmuted");
+    loadImage("muted");
     loadImage("logo");
     loadImage("midi");
-    loadImage("mute");
     loadImage("scc");
     loadImage("gs");
     loadImage("xg");
 };
 
+function createMuteButtons() {
+    for (var y = 49; y <= 217; y += 168) {
+        elements.push({
+            x: 58,
+            y: y,
+            width: 632,
+            height: 14,
+            over: false,
+            onmousedown: function(x, y) {
+                var x = (x - 58) / 36;
+                var y = (y - 49) / 168;
+                var idx = (Math.round(y)*16)+Math.floor(x);
+                var chan = channels[idx];
+                chan.mute = !chan.mute;
+                drawChannel(idx, chan.mute, chan.poly, chan.percussion, chan.freq);
+            },
+            onenter: function() { },
+            onexit: function() { }
+        });
+    }
+}
+
+function  drawTextured(_x, _y, w, h) {
+    ctx.fillStyle = palette.dark;
+    var checkered = ctx.createImageData(1, h);
+    var d = checkered.data;
+    var f = hexToRgb(palette.dark);
+    for(var y = 0; y < checkered.data.length; y+=8) {
+        d[y] = 0;
+        d[y+1] = 0;
+        d[y+2] = 0;
+        d[y+3] = 0;
+        
+        d[y+4] = f.r;
+        d[y+5] = f.g;
+        d[y+6] = f.b;
+        d[y+7] = 255;
+    }
+    for(var x = 0; x+4 <= w; x+=4) {
+        ctx.putImageData(checkered, _x+x, _y);
+        ctx.fillRect(_x+x+1, _y, 2, h);
+    }
+}
+
+function drawLogos() {
+    ctx.drawImage(images.logo, 15, 10);
+    drawTextured(358, 410, 64, 32);
+    ctx.drawImage(images.midi, 436, 412);
+    ctx.drawImage(images.gs, 482, 413);
+    ctx.drawImage(images.xg, 525, 413);
+    ctx.drawImage(images.scc, 575, 413);
+    fonts.letter_spacing = 0;
+    drawText("medium", "Alpha v. 0.0.1", 39, 39, "#FFF");
+    drawText("medium", "(C) 2016 meme.institute + Milkey Mouse", 453, 4, palette.dark);
+    drawText("medium", "(C) 2016 meme.institute + Milkey Mouse", 452, 3, "#FFF");
+    drawText("medium", "Inspired by Gashisoft's GXSCC", 492, 14, palette.dark);
+    drawText("medium", "This project is open source: https://github.com/milkey-mouse/JSSCC", 44, 435, palette.dark);
+}
+
+function drawLabels() {
+    drawTextRTL("small", "BUFFER", 410, 35, palette.foreground);    
+    ctx.drawImage(images.pointer, 412, 27);
+    drawText("small", "OUT", 420, 25, palette.foreground);    
+    ctx.drawImage(images.pointer, 446, 27);
+    drawText("small", "DANGER", 454, 25, palette.foreground);    
+    ctx.drawImage(images.pointer, 520, 27);
+    drawText("small", "GOOD", 528, 25, palette.foreground);    
+    ctx.drawImage(images.pointer, 595, 27);
+    drawText("small", "GREAT", 603, 25, palette.foreground); 
+    for (var y = 53; y <= 221; y += 168)
+    {
+            drawTextRTL("small", "MUTE/POLY", 54, y, palette.foreground);
+            drawTextRTL("small", "VOLUME", 54, y+13, palette.foreground);
+            drawTextRTL("small", "EXPRESSION", 54, y+21, palette.foreground);
+            drawTextRTL("small", "SW.ENVELOPE", 54, y+29, palette.foreground);
+            drawTextRTL("small", "OUTPUT", 54, y+45, palette.foreground);
+            drawTextRTL("small", "PITCHBEND", 54, y+73, palette.foreground);
+            drawTextRTL("small", "PANPOT", 54, y+84, palette.foreground);
+            drawTextRTL("small", "PC", 54, y+96, palette.foreground);
+            drawTextRTL("small", "CC0", 54, y+106, palette.foreground);
+            drawTextRTL("small", "WAVE", 54, y+121, palette.foreground);
+            drawTextRTL("small", "FREQUENCY", 54, y+136, palette.foreground);
+            drawTextRTL("small", "HOLD/SOFT", 54, y+147, palette.foreground);
+    }
+    drawTextRTL("small", "SONG", 54, 388, palette.foreground);
+    drawTextRTL("small", "POSITION", 54, 407, palette.foreground);                   
+    drawTextRTL("small", "TICK", 54, 423, palette.foreground);
+    drawText("small", "BPM", 138, 423, palette.foreground);
+    drawText("small", "TB", 184, 423, palette.foreground);    
+}
+
+function drawSongInfo(position) {
+    ctx.setTransform(scale, 0, 0, scale, 0.5, 0.5);
+
+    // buffer
+    ctx.fillStyle = palette.light;
+    ctx.strokeStyle = palette.foreground;
+    ctx.fillRect(412, 32, 219, 9);
+    ctx.strokeRect(412, 32, 219, 9);
+
+    // song name
+    ctx.fillStyle = palette.dark;
+    ctx.strokeStyle = palette.dark;
+    ctx.fillRect(58, 383, 573, 14);
+    ctx.strokeRect(58, 383, 573, 14);
+
+    // position slider
+    ctx.fillStyle = palette.background;
+    ctx.strokeStyle = palette.foreground;
+    ctx.fillRect(58, 402, 236, 16);
+    ctx.fillStyle = palette.dark;
+    ctx.fillRect(58, 402, 236*position, 16);
+    ctx.strokeRect(58, 402, 236, 16);
+
+    // tick, bpm, tb
+    ctx.fillStyle = palette.background;
+    ctx.fillRect(58, 421, 74, 9);
+    ctx.strokeRect(58, 421, 74, 9);
+
+    ctx.fillRect(159, 421, 20, 9);
+    ctx.strokeRect(159, 421, 20, 9);
+
+    ctx.fillRect(198, 421, 20, 9);
+    ctx.strokeRect(198, 421, 20, 9);
+
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+
+    // song name
+    drawText("large", "C:\\Users\\meme-hacker\\Documents\\swood\\never-gonna-give-you-up.mid", 60, 385, "#FFD2A2");
+
+    // tick, bpm, tb
+    drawTextRTL("small", "00 : 00 : 00'000", 130, 423, "#FFF");
+    drawTextRTL("small", "000", 178, 423, "#FFF");
+    drawTextRTL("small", "000", 217, 423, "#FFF");
+}
+
 images.onLoaded = function() {
     ctx.fillStyle = palette.background;
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.drawImage(images["logo"], 15, 10);
-    drawText("medium", "Alpha v. 0.0.1", 33, 39, "#FFF");
-    drawText("medium", "(C) 2016 meme.institute + Milkey Mouse", 433, 4, palette.light);
-    drawText("medium", "(C) 2016 meme.institute + Milkey Mouse", 432, 3, "#FFF");
-    drawText("medium", "Inspired by Gashisoft's GXSCC", 472, 14, palette.light);
+    ctx.canvas.addEventListener("mousedown", function(event) {
+        var x = event.pageX - ctx.canvas.offsetLeft;
+        var y = event.pageY - ctx.canvas.offsetTop;
+
+        elements.forEach(function(e) {
+            if (y > e.y && y < e.y + e.height && x > e.x && x < e.x + e.width) { 
+                e.onmousedown(x, y);
+            }
+        });
+    });
+    ctx.canvas.addEventListener("mousemove", function(event) {
+        var x = event.pageX - ctx.canvas.offsetLeft;
+        var y = event.pageY - ctx.canvas.offsetTop;
+
+        elements.forEach(function(e) {
+            var over = y > e.y && y < e.y + e.height && x > e.x && x < e.x + e.width;
+            if (over === true && e.over === false) { 
+                e.onenter();
+                e.over = true;
+            } else if (over === false && e.over === true) {
+                e.onexit();
+                e.over = false;
+            }
+        });
+    });
+    elements.push({
+        x: 44,
+        y: 435,
+        width: 300,
+        height: 10,
+        over: false,
+        onmousedown: function() {
+            window.location = "https://github.com/milkey-mouse/JSSCC"
+        },
+        onenter: function() {
+            ctx.strokeStyle = palette.dark;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(160.5, 442.5);
+            ctx.lineTo(344.5, 442.5);
+            ctx.stroke();
+        },
+        onexit: function() {
+            fonts.letter_spacing = 0;
+            ctx.fillStyle = palette.background;
+            ctx.fillRect(44, 435, 310, 10);
+            drawText("medium", "This project is open source: https://github.com/milkey-mouse/JSSCC", 44, 435, palette.dark);
+        }
+    });
+    createMuteButtons();
+    drawLogos();
+    drawSongInfo(1);
+    drawLabels();
     drawChannels();
 };
