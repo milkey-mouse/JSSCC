@@ -188,7 +188,8 @@ function drawChannel(idx) {
 
     // waveform
     if (idx % 16 === 9) {
-        ctx.drawImage(images.drum, x-0.5, y+118.5);
+        ctx.drawImage(images.nowave, x-0.5, y+118.5);
+        ctx.drawImage(images.drum, x+2.5, y+123.5);
     } else {
         ctx.fillStyle = palette.background;
         ctx.fillRect(x, y+119, 33, 17);
@@ -363,6 +364,7 @@ fonts.onLoaded = function() {
     loadImage("vulabels");
     loadImage("pointer");
     loadImage("unmuted");
+    loadImage("nowave");
     loadImage("muted");
     loadImage("drum");
     loadImage("logo");
