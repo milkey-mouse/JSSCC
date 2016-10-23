@@ -46,7 +46,7 @@ for (var i = 0; i < 32; i++) {
         percussion: 0,
         cc0: 0,
         freq: 0,
-        wave: null
+        wave: function(x) { return Math.sin((x+1)*Math.PI); }
     });
 }
 
@@ -152,8 +152,8 @@ function drawChannel(idx) {
     ctx.lineWidth = 1;
     ctx.setTransform(scale, 0, 0, scale, 0.5, 0.5);
 
-    ctx.fillStyle = palette.background;
-    ctx.fillRect(x, y, 33, 158);
+    //ctx.fillStyle = palette.background;
+    //ctx.fillRect(x, y, 33, 158);
     
     // mute/poly
     ctx.strokeStyle = palette.foreground;
@@ -187,8 +187,23 @@ function drawChannel(idx) {
     ctx.strokeRect(x, y+108, 33, 9);
 
     // waveform
-    ctx.strokeRect(x, y+119, 33, 17);
-    
+    if (idx % 16 === 9) {
+        ctx.drawImage(images.drum, x-0.5, y+118.5);
+    } else {
+        ctx.fillStyle = palette.background;
+        ctx.fillRect(x, y+119, 33, 17);
+        ctx.strokeRect(x, y+119, 33, 17);
+
+        ctx.fillStyle = palette.light;
+
+        if (chan.wave !== null) {
+            ctx.fillRect(x+0.5, y+127.5, 32, 1);
+            for(var i = 0; i < 32; i++) {
+                ctx.fillRect(x+i+0.5, y+127.5, 1, chan.wave(i/16)*8);
+            }
+        }
+    }
+
     // frequency
     ctx.strokeRect(x, y+138, 33, 9);
     
@@ -227,7 +242,7 @@ function drawChannel(idx) {
     var old_spacing = fonts.letter_spacing;
     fonts.letter_spacing = 0;
 
-    //percussion (pc) #
+    //percussion (pc)
     var pcStr = "" + chan.percussion;
     pcStr = "000".substring(pcStr.length) + pcStr;
     drawTextRTL("small", pcStr, x+32, y+99, "#FFF");
@@ -349,6 +364,7 @@ fonts.onLoaded = function() {
     loadImage("pointer");
     loadImage("unmuted");
     loadImage("muted");
+    loadImage("drum");
     loadImage("logo");
     loadImage("midi");
     loadImage("scc");
@@ -402,7 +418,7 @@ function  drawTextured(_x, _y, w, h) {
 function drawLogos() {
     ctx.drawImage(images.logo, 15, 10);
     ctx.drawImage(images.sparkles, 424, 4);
-    drawTextured(358, 410, 64, 32);
+    drawTextured(358, 400, 64, 32);
     ctx.drawImage(images.midi, 436, 412);
     ctx.drawImage(images.gs, 482, 413);
     ctx.drawImage(images.xg, 525, 413);
