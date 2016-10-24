@@ -31,8 +31,9 @@ images = {
 };
 
 elements = [];
-
 channels = [];
+
+filePath = "Drag and drop a MIDI file into this window to play";
 
 for (var i = 0; i < 32; i++) {
     channels.push({
@@ -518,7 +519,7 @@ function drawSongInfo(position, buffer) {
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
     // song name
-    drawText("large", "Drag and drop a MIDI into this window", 60, 385, "#FFD2A2");
+    drawText("large", filePath, 60, 385, "#FFD2A2");
 
     // tick, bpm, tb
     drawTextRTL("small", "00 : 00 : 00'000", 130, 423, "#FFF");
@@ -531,6 +532,27 @@ function redraw() {
     drawSongInfo(0.2, 0.75);
     drawLabels();
     drawChannels();
+}
+
+function roundRect(x, y, width, height, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+     ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    ctx.stroke();
+}
+
+function processFile(file) {
+    filePath = file.name;
+    console.log(file);
+    drawSongInfo();
 }
 
 images.onLoaded = function() {
@@ -562,37 +584,43 @@ images.onLoaded = function() {
         });
     });
     ctx.canvas.addEventListener("dragenter", function(e) {
-        //e.preventDefault();
-        tempCanvas = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+        if (window.tempCanvas === undefined || window.tempCanvas === null) { tempCanvas = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height); }
         ctx.fillStyle = palette.background;
         ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
         ctx.fillStyle = palette.foreground;
         ctx.fillText("Drop a MIDI here", ctx.canvas.width/2, ctx.canvas.height/2);
-    }, true);
-    ctx.canvas.addEventListener("dragover", function(e) { e.preventDefault(); }, true);
-    ctx.canvas.addEventListener("dragexit", function(e) {
-        //e.preventDefault();
-        if (tempCanvas !== undefined && tempCanvas !== null) {
-            ctx.putImageData(tempCanvas, 0, 0);
-            tempCanvas = null;
-        } else {
-            redraw();
-        }
-    }, true);
-    ctx.canvas.addEventListener("drop", function(e){
+        ctx.strokeStyle = palette.foreground;
+        ctx.lineWidth = 7.5;
+        ctx.setLineDash([12.5, 12.5]);
+        roundRect(25, 25, ctx.canvas.width - 50, ctx.canvas.height - 50, 40);
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
         e.preventDefault();
-        if (e.dataTransfer !== null && e.dataTransfer.files[0] !== null) {
-            console.log(e.dataTransfer.files[0]);
-        }
-        ctx.fillStyle = palette.background;
-        ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-        if (tempCanvas !== undefined && tempCanvas !== null) {
+    }, false);
+    ctx.canvas.addEventListener("dragover", function(e) { e.preventDefault(); }, false);
+    ctx.canvas.addEventListener("dragleave", function(e) {
+        if (window.tempCanvas !== undefined && window.tempCanvas !== null) {
             ctx.putImageData(tempCanvas, 0, 0);
             tempCanvas = null;
         } else {
             redraw();
         }
-    }, true);
+        e.preventDefault();
+    }, false);
+    ctx.canvas.addEventListener("drop", function(e){
+        if (tempCanvas !== undefined && tempCanvas !== null) {
+            ctx.putImageData(tempCanvas, 0, 0);
+            tempCanvas = null;
+        } else {
+            ctx.fillStyle = palette.background;
+            ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            redraw();
+        }
+        if (e.dataTransfer !== null && e.dataTransfer.files[0] !== null && e.dataTransfer.files[0].type === "audio/mid") {
+            processFile(e.dataTransfer.files[0]);
+        }
+        e.preventDefault();
+    }, false);
     elements.push({
         x: 44,
         y: 435,
