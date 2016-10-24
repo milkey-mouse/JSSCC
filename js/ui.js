@@ -518,12 +518,19 @@ function drawSongInfo(position, buffer) {
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
     // song name
-    drawText("large", "C:\\Users\\meme-hacker\\Documents\\swood\\never-gonna-give-you-up.mid", 60, 385, "#FFD2A2");
+    drawText("large", "Drag and drop a MIDI into this window", 60, 385, "#FFD2A2");
 
     // tick, bpm, tb
     drawTextRTL("small", "00 : 00 : 00'000", 130, 423, "#FFF");
     drawTextRTL("small", "000", 178, 423, "#FFF");
     drawTextRTL("small", "000", 217, 423, "#FFF");
+}
+
+function redraw() {
+    drawLogos();
+    drawSongInfo(0.2, 0.75);
+    drawLabels();
+    drawChannels();
 }
 
 images.onLoaded = function() {
@@ -554,6 +561,38 @@ images.onLoaded = function() {
             }
         });
     });
+    ctx.canvas.addEventListener("dragenter", function(e) {
+        //e.preventDefault();
+        tempCanvas = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.fillStyle = palette.background;
+        ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.fillStyle = palette.foreground;
+        ctx.fillText("Drop a MIDI here", ctx.canvas.width/2, ctx.canvas.height/2);
+    }, true);
+    ctx.canvas.addEventListener("dragover", function(e) { e.preventDefault(); }, true);
+    ctx.canvas.addEventListener("dragexit", function(e) {
+        //e.preventDefault();
+        if (tempCanvas !== undefined && tempCanvas !== null) {
+            ctx.putImageData(tempCanvas, 0, 0);
+            tempCanvas = null;
+        } else {
+            redraw();
+        }
+    }, true);
+    ctx.canvas.addEventListener("drop", function(e){
+        e.preventDefault();
+        if (e.dataTransfer !== null && e.dataTransfer.files[0] !== null) {
+            console.log(e.dataTransfer.files[0]);
+        }
+        ctx.fillStyle = palette.background;
+        ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        if (tempCanvas !== undefined && tempCanvas !== null) {
+            ctx.putImageData(tempCanvas, 0, 0);
+            tempCanvas = null;
+        } else {
+            redraw();
+        }
+    }, true);
     elements.push({
         x: 44,
         y: 435,
@@ -579,8 +618,5 @@ images.onLoaded = function() {
         }
     });
     createMuteButtons();
-    drawLogos();
-    drawSongInfo(0.2, 0.75);
-    drawLabels();
-    drawChannels();
+    redraw();
 };
