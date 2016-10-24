@@ -32,6 +32,7 @@ images = {
 
 elements = [];
 channels = [];
+midiFile = null;
 
 filePath = "Drag and drop a MIDI file into this window to play";
 
@@ -551,8 +552,19 @@ function roundRect(x, y, width, height, radius) {
 
 function processFile(file) {
     filePath = file.name;
-    console.log(file);
     drawSongInfo();
+
+    var reader = new FileReader();
+    reader.addEventListener("loadend", function (e) {
+        if (reader.readyState === 2) {
+            if (reader.error !== null) {
+                console.error(reader.error);
+                return;
+            }
+            midiFile = new MIDIFile(reader.result);
+        }
+    }, false);
+    reader.readAsArrayBuffer(file);
 }
 
 images.onLoaded = function() {
