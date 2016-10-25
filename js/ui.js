@@ -175,7 +175,7 @@ function drawChannel(idx) {
     var y = (Math.floor(idx / 16) * 168) + 49;
     var chan = channels[idx];
     ctx.lineWidth = 1;
-    ctx.setTransform(scale, 0, 0, scale, 0.5, 0.5);
+    ctx.setTransform(1, 0, 0, 1, 0.5, 0.5);
 
     //ctx.fillStyle = palette.background;
     //ctx.fillRect(x, y, 33, 158);
@@ -265,7 +265,7 @@ function drawChannel(idx) {
     drawPan(x+2, y+77, chan.pitchbend);
     drawPan(x+2, y+88, chan.panpot);    
 
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);    
+    ctx.setTransform(1, 0, 0, 1, 0, 0);    
 
     var old_spacing = fonts.letter_spacing;
     fonts.letter_spacing = 0;
@@ -304,7 +304,7 @@ function setScale() {
     scale = Math.max(1, Math.floor(Math.min(width, height)));
     ctx.canvas.style.width = ctx.canvas.width * scale + "px";
     ctx.canvas.style.height = ctx.canvas.height * scale + "px";
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 function loadImage(name) {
@@ -493,7 +493,7 @@ function drawLabels() {
 }
 
 function drawBuffer(buffer) {
-    ctx.setTransform(scale, 0, 0, scale, 0.5, 0.5);
+    ctx.setTransform(1, 0, 0, 1, 0.5, 0.5);
     ctx.fillStyle = palette.background;
     ctx.fillRect(412, 32, 219, 9);
     ctx.fillStyle = palette.light;
@@ -502,11 +502,11 @@ function drawBuffer(buffer) {
     ctx.strokeRect(412+Math.round(219*buffer), 32, 1, 9);
     ctx.strokeStyle = palette.foreground;
     ctx.strokeRect(412, 32, 219, 9);
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 function drawPositionSlider(position) {
-    ctx.setTransform(scale, 0, 0, scale, 0.5, 0.5);
+    ctx.setTransform(1, 0, 0, 1, 0.5, 0.5);
     ctx.fillStyle = palette.background;
     ctx.fillRect(58, 402, 236, 16);
     ctx.fillStyle = palette.dark;
@@ -515,14 +515,14 @@ function drawPositionSlider(position) {
     ctx.strokeRect(58+Math.round(236*position), 402, 1, 16);
     ctx.strokeStyle = palette.foreground;
     ctx.strokeRect(58, 402, 236, 16);
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 function drawSongInfo(position, buffer) {
     drawBuffer(buffer);
     drawPositionSlider(position);
 
-    ctx.setTransform(scale, 0, 0, scale, 0.5, 0.5);
+    ctx.setTransform(1, 0, 0, 1, 0.5, 0.5);
 
     // song name
     ctx.fillStyle = palette.dark;
@@ -542,7 +542,7 @@ function drawSongInfo(position, buffer) {
     ctx.fillRect(198, 421, 20, 9);
     ctx.strokeRect(198, 421, 20, 9);
 
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     // song name
     if (filePath !== null) {
