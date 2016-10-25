@@ -30,11 +30,24 @@ images = {
     onLoaded: function() {}
 };
 
+waveforms = {
+    sine: function(x) { return Math.sin((x*2)*Math.PI); },
+    pulse125: function(x) { return x % 1 > 0.125 ? -0.8 : 0.8; },
+    pulse25: function(x) { return x % 1 > 0.25 ? -0.8 : 0.8; },
+    square: function(x) { return x % 1 > 0.5 ? -0.8 : 0.8; },
+    pulsedSquare: function(x) { return x % 1 > 0.5 ? 0 : 0.8; },
+    triangle: function(x) {
+        var clamped = (x+0.25) % 1;
+        if (clamped > 0.5) {
+            return 3 - clamped*4;
+        } else {
+            return (clamped-0.25)*4;
+        }
+    }
+};
+
 elements = [];
 channels = [];
-midiFile = null;
-
-filePath = "Drag and drop a MIDI file into this window to play";
 
 for (var i = 0; i < 32; i++) {
     channels.push({
@@ -48,9 +61,19 @@ for (var i = 0; i < 32; i++) {
         percussion: 0,
         cc0: 0,
         freq: 0,
-        wave: function(x) { return Math.sin((x+1)*Math.PI); }
+        wave: null
     });
 }
+
+channels[0].wave = waveforms.sine;
+channels[1].wave = waveforms.pulse125;
+channels[2].wave = waveforms.pulse25;
+channels[3].wave = waveforms.square;
+channels[4].wave = waveforms.triangle;
+channels[5].wave = waveforms.pulsedSquare;
+
+midiFile = null;
+filePath = null;
 
 function hexToRgb(hex) {
     // https://stackoverflow.com/a/5624139
@@ -189,21 +212,23 @@ function drawChannel(idx) {
     ctx.strokeRect(x, y+108, 33, 9);
 
     // waveform
+
+    ctx.fillStyle = palette.background;
+    ctx.fillRect(x, y+119, 33, 17);
+    ctx.strokeRect(x, y+119, 33, 17);
+    ctx.fillStyle = palette.light;
+
+    ctx.fillRect(x+0.5, y+127.5, 32, 1);    
+
     if (idx % 16 === 9) {
         ctx.drawImage(images.nowave, x-0.5, y+118.5);
         ctx.drawImage(images.drum, x+2.5, y+123.5);
-    } else {
-        ctx.fillStyle = palette.background;
-        ctx.fillRect(x, y+119, 33, 17);
-        ctx.strokeRect(x, y+119, 33, 17);
-
+    } else if (chan.wave !== null) {
         ctx.fillStyle = palette.light;
-
-        if (chan.wave !== null) {
-            ctx.fillRect(x+0.5, y+127.5, 32, 1);
-            for(var i = 0; i < 32; i++) {
-                ctx.fillRect(x+i+0.5, y+127.5, 1, chan.wave(i/16)*8);
-            }
+        for(var i = 0; i < 32; i++) {
+            var val = Math.round(chan.wave(i / 32) * 7.5);
+            if (val >= 0) { val++; }
+            ctx.fillRect(x+i+0.5, y+128.5, 1, -val);
         }
     }
 
@@ -422,7 +447,7 @@ function  drawTextured(_x, _y, w, h) {
 function drawLogos() {
     ctx.drawImage(images.logo, 15, 10);
     ctx.drawImage(images.sparkles, 424, 4);
-    drawTextured(358, 400, 64, 32);
+    drawTextured(358, 410, 64, 32);
     ctx.drawImage(images.midi, 436, 412);
     ctx.drawImage(images.gs, 482, 413);
     ctx.drawImage(images.xg, 525, 413);
@@ -520,7 +545,11 @@ function drawSongInfo(position, buffer) {
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
     // song name
-    drawText("large", filePath, 60, 385, "#FFD2A2");
+    if (filePath !== null) {
+        drawText("large", filePath, 60, 385, "#FFD2A2");
+    } else {
+        drawText("large", "Drag and drop a MIDI file into this window to play.", 60, 385, "#FFD2A2");
+    }
 
     // tick, bpm, tb
     drawTextRTL("small", "00 : 00 : 00'000", 130, 423, "#FFF");
@@ -562,6 +591,11 @@ function processFile(file) {
                 return;
             }
             midiFile = new MIDIFile(reader.result);
+            if (midiFile.header.getFormat() === 2) {
+                midiFile = null;
+                filePath = null;
+                console.error("Type 2 MIDI file is unsupported");
+            }
         }
     }, false);
     reader.readAsArrayBuffer(file);
