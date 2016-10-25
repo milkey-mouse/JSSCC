@@ -317,7 +317,7 @@ function loadImage(name) {
             images.onLoaded();
         }
     }
-    img.src = "/assets/" + name + ".png";
+    img.src = "assets/" + name + ".png";
 }
 
 function loadFont(name) {
@@ -356,7 +356,7 @@ function loadFont(name) {
             fonts.onLoaded();
         }
     }
-    img.src = "/assets/fonts/" + name + ".png";
+    img.src = "assets/fonts/" + name + ".png";
 }
 
 window.onresize = setScale;
