@@ -372,6 +372,7 @@ window.onload = function() {
     ctx.imageSmoothingEnabled = false;
     setScale();
     ctx.fillStyle = palette.background;
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.textBaseline = "middle";
     ctx.textAlign = "center";
     ctx.font = "25px monospace";
