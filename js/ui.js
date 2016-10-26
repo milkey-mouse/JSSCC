@@ -604,9 +604,10 @@ function processFile(file) {
 images.onLoaded = function() {
     ctx.fillStyle = palette.background;
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    // TODO: convert to polyfill, use ctx.addHitDetector or whatever
     ctx.canvas.addEventListener("mousedown", function(event) {
-        var x = event.pageX - ctx.canvas.offsetLeft;
-        var y = event.pageY - ctx.canvas.offsetTop;
+        var x = (event.pageX - ctx.canvas.offsetLeft) / scale;
+        var y = (event.pageY - ctx.canvas.offsetTop) / scale;
 
         elements.forEach(function(e) {
             if (y > e.y && y < e.y + e.height && x > e.x && x < e.x + e.width) { 
@@ -615,8 +616,8 @@ images.onLoaded = function() {
         });
     });
     ctx.canvas.addEventListener("mousemove", function(event) {
-        var x = event.pageX - ctx.canvas.offsetLeft;
-        var y = event.pageY - ctx.canvas.offsetTop;
+        var x = (event.pageX - ctx.canvas.offsetLeft) / scale;
+        var y = (event.pageY - ctx.canvas.offsetTop) / scale;
 
         elements.forEach(function(e) {
             var over = y > e.y && y < e.y + e.height && x > e.x && x < e.x + e.width;
