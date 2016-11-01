@@ -1,11 +1,13 @@
 {
     "compilerOptions": {
         "target": "es5",
-        "noImplicitAny": true,
         "module": "none",
+        "noImplicitAny": true,
         "removeComments": false,
         "preserveConstEnums": true,
+        "strictNullChecks": true,
         "out": "js/jsscc.js",
-        "sourceMap": false
+        "sourceMap": false,
+        "rootDir": "src"
     }
 }

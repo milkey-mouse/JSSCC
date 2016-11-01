@@ -1,0 +1,40 @@
+{
+    "palettes": {
+        "default": {
+            "background": "#df825f",
+            "foreground": "#5c1f09",
+            "dark": "#b2593f",
+            "light": "#ffd2a2",
+            "white": "#ffffff"
+        }
+    }, 
+    "images": [
+        "images/drum.png",
+        "images/gs.png",
+        "images/logo.png",
+        "images/midi.png",
+        "images/muted.png",
+        "images/nowave.png",
+        "images/pointer.png",
+        "images/scc.png",
+        "images/sparkles.png",
+        "images/unmuted.png",
+        "images/vulabels.png",
+        "images/xg.png"
+    ],
+    "fonts": [
+        {
+            "path": "fonts/small.png",
+            "map": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ./':"
+        },
+        {
+            "path": "fonts/medium.png",
+            "map": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,'()+/:-"
+        },
+        {
+            "path": "fonts/large.png",
+            "rowEscapes": [3,4],
+            "map": "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+        }
+    ]
+}
