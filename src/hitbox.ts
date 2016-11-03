@@ -7,9 +7,9 @@ class HitRegion {
     over: boolean;
     cursor: string | null;
 
-    onmousedown: ((x: number, y: number)=>void) | null;
-    onenter: (()=>void) | null;
-    onexit: (()=>void) | null;
+    onmousedown: ((x: number, y: number) => void) | null;
+    onenter: (() => void) | null;
+    onexit: (() => void) | null;
 
     constructor(x: number, y: number, width: number, height: number) {
         this.x = x;
@@ -46,7 +46,7 @@ class HitDetector {
     public onMouseDown(event: MouseEvent) {
         for (var regionName in this.regions) {
             let r = this.regions[regionName];
-            if (r.onmousedown !== null && 
+            if (r.onmousedown !== null &&
                 event.offsetY >= r.y && event.offsetY <= r.y + r.h &&
                 event.offsetX >= r.x && event.offsetX <= r.x + r.w) {
                 r.onmousedown(event.offsetX, event.offsetY);
@@ -59,7 +59,7 @@ class HitDetector {
         for (var regionName in this.regions) {
             let r = this.regions[regionName];
             let over = event.offsetY >= r.y && event.offsetY <= r.y + r.h &&
-                        event.offsetX >= r.x && event.offsetX <= r.x + r.w;
+                event.offsetX >= r.x && event.offsetX <= r.x + r.w;
             if (over && r.cursor !== null) {
                 this.ctx.canvas.style.cursor = r.cursor;
             }
@@ -73,7 +73,7 @@ class HitDetector {
         }
     }
 
-    public addHitRegion(r: HitRegion, key?: string) : string {
+    public addHitRegion(r: HitRegion, key?: string): string {
         if (key == null) {
             key = "region" + this.unnamedRegionsCount;
             this.unnamedRegionsCount++;
@@ -82,11 +82,11 @@ class HitDetector {
         return key;
     }
 
-    public removeHitRegion(key: string) : void {
+    public removeHitRegion(key: string): void {
         delete this.regions[key];
     }
 
-    public clearHitRegions() : void {
+    public clearHitRegions(): void {
         this.regions = {};
     }
 }

@@ -356,6 +356,38 @@ var AssetLoader = (function () {
     AssetLoader.prototype.getFont = function (name) {
         return this.fonts[name];
     };
+    AssetLoader.prototype.exportPalette = function (name) {
+        if (this.tempCanvas == null) {
+            var newCanvas = document.createElement("canvas").getContext("2d");
+            if (typeof newCanvas === "object") {
+                this.tempCanvas = newCanvas;
+            }
+            else {
+                console.error("could not create canvas or context for temp loader");
+                return;
+            }
+        }
+        var colors = [];
+        for (var key in this.palettes[name]) {
+            colors.push(key);
+        }
+        colors.sort();
+        this.tempCanvas.canvas.width = colors.length;
+        this.tempCanvas.canvas.height = 1;
+        var tempData = new ImageData(colors.length, 1);
+        for (var i = 0; i < colors.length; i++) {
+            var color = AssetLoader.hexToRgb(this.palettes[name][colors[i]]);
+            if (color !== null) {
+                tempData.data[i * 4] = color.r;
+                tempData.data[i * 4 + 1] = color.g;
+                tempData.data[i * 4 + 2] = color.b;
+                tempData.data[i * 4 + 3] = 255;
+            }
+        }
+        console.log(colors);
+        this.tempCanvas.putImageData(tempData, 0, 0);
+        window.location.assign(this.tempCanvas.canvas.toDataURL("image/png"));
+    };
     return AssetLoader;
 }());
 var Song = (function () {
@@ -460,6 +492,7 @@ var CanvasRenderer = (function () {
             this.loader.switchPalette(this.paletteName, name);
             this.palette = this.loader.palettes[name];
             this.paletteName = name;
+            document.body.style.backgroundColor = this.palette.background;
         }
         if (redraw && this.initialized) {
             this.clear();
@@ -516,18 +549,20 @@ var CanvasRenderer = (function () {
         this.ctx.fillStyle = this.palette.dark;
         var checkered = this.ctx.createImageData(1, h);
         var d = checkered.data;
-        var f = AssetLoader.hexToRgb(this.palette.dark);
-        if (f === null) {
+        var dark = AssetLoader.hexToRgb(this.palette.dark);
+        var bg = AssetLoader.hexToRgb(this.palette.background);
+        if (dark === null || bg === null) {
+            console.error("couldn't parse palette colors when drawing texture");
             return;
         }
         for (var i = 0; i < checkered.data.length; i += 8) {
-            d[i] = 0;
-            d[i + 1] = 0;
-            d[i + 2] = 0;
-            d[i + 3] = 0;
-            d[i + 4] = f.r;
-            d[i + 5] = f.g;
-            d[i + 6] = f.b;
+            d[i] = bg.r;
+            d[i + 1] = bg.g;
+            d[i + 2] = bg.b;
+            d[i + 3] = 255;
+            d[i + 4] = dark.r;
+            d[i + 5] = dark.g;
+            d[i + 6] = dark.b;
             d[i + 7] = 255;
         }
         for (var i = 0; i + 4 <= w; i += 4) {
@@ -544,9 +579,9 @@ var CanvasRenderer = (function () {
         this.ctx.putImageData(this.loader.getImage("xg"), 525, 413);
         this.ctx.putImageData(this.loader.getImage("scc"), 575, 413);
         var medium = this.loader.getFont("medium");
-        medium.drawText(this.ctx, "Alpha v. 0.0.1", 39, 39, "#FFF");
+        medium.drawText(this.ctx, "Alpha v. 0.0.1", 39, 39, this.palette.white);
         medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 453, 4, this.palette.dark); //drop shadow
-        medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 452, 3, "#FFF");
+        medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 452, 3, this.palette.white);
         medium.drawText(this.ctx, "Inspired by Gashisoft GXSCC", 500, 14, this.palette.dark);
         medium.drawText(this.ctx, "This project is open source: https://github.com/milkey-mouse/JSSCC", 44, 435, this.palette.dark);
     };
@@ -585,14 +620,14 @@ var CanvasRenderer = (function () {
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         // song name
         var path = this.song.fileName === null ? "Drag and drop a MIDI file into this window to play" : this.song.fileName;
-        this.loader.getFont("large").drawText(this.ctx, path, 60, 385, "#FFD2A2");
+        this.loader.getFont("large").drawText(this.ctx, path, 60, 385, this.palette.light);
         // tick, bpm, tb
         var small = this.loader.getFont("small");
         small.spaceWidth = 1;
-        small.drawTextRTL(this.ctx, "00 : 00 : 00 '000", 131, 423, "#FFF");
+        small.drawTextRTL(this.ctx, "00 : 00 : 00 '000", 131, 423, this.palette.white);
         small.spaceWidth = 2;
-        small.drawTextRTL(this.ctx, "000", 178, 423, "#FFF");
-        small.drawTextRTL(this.ctx, "000", 217, 423, "#FFF");
+        small.drawTextRTL(this.ctx, "000", 178, 423, this.palette.white);
+        small.drawTextRTL(this.ctx, "000", 217, 423, this.palette.white);
     };
     CanvasRenderer.prototype.drawLabels = function () {
         var small = this.loader.getFont("small");
@@ -762,13 +797,13 @@ var CanvasRenderer = (function () {
         //percussion (pc)
         var pcStr = "" + chan.percussion;
         pcStr = "000".substring(pcStr.length) + pcStr;
-        small.drawTextRTL(this.ctx, pcStr, x + 32, y + 99, "#FFF");
+        small.drawTextRTL(this.ctx, pcStr, x + 32, y + 99, this.palette.white);
         // cc0
-        small.drawTextRTL(this.ctx, "000", x + 32, y + 110, "#FFF");
+        small.drawTextRTL(this.ctx, "000", x + 32, y + 110, this.palette.white);
         // frequency
         var freqStr = "" + chan.freq;
         freqStr = "00000".substring(freqStr.length) + freqStr;
-        small.drawTextRTL(this.ctx, freqStr, x + 32, y + 140, "#FFF");
+        small.drawTextRTL(this.ctx, freqStr, x + 32, y + 140, this.palette.white);
         // mute
         this.ctx.putImageData(this.loader.getImage(chan.mute ? "muted" : "unmuted"), x + 3, y + 3);
         // labels for vu meters

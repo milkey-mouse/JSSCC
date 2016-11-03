@@ -18,26 +18,26 @@ class BitmapFont {
 
         var lastCut = -1;
         var charIdx = 0;
-        for(var row = 0; row < imgCanvas.canvas.width; row++) {
+        for (var row = 0; row < imgCanvas.canvas.width; row++) {
             if (rowEscapes == null || rowEscapes.indexOf(row) === -1) {
                 var data = imgCanvas.getImageData(row, 0, 1, this.height).data;
                 for (var i = 0; i < data.length; i++) { if (data[i] != 255) { break; } }
                 if (i === data.length) {  //this row is all white
-                    this.chars[charIdx] = imgCanvas.getImageData(lastCut+1, 0, row - lastCut - 1, this.height);
+                    this.chars[charIdx] = imgCanvas.getImageData(lastCut + 1, 0, row - lastCut - 1, this.height);
                     lastCut = row;
                     charIdx++;
                 }
             }
         }
-        this.chars[charIdx] = imgCanvas.getImageData(lastCut+1, 0, imgCanvas.canvas.width - lastCut - 1, this.height);
+        this.chars[charIdx] = imgCanvas.getImageData(lastCut + 1, 0, imgCanvas.canvas.width - lastCut - 1, this.height);
         if (this.charMap.length !== this.chars.length) {
             console.error("map is different length than char array; char map probably didn't load correctly")
         }
     }
 
-    public drawText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color?: string) : void {
-        var newPalette : Palette = <Palette>{ foreground: color };
-        for(var i = 0; i < text.length; i++) {
+    public drawText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color?: string): void {
+        var newPalette: Palette = <Palette>{ foreground: color };
+        for (var i = 0; i < text.length; i++) {
             if (text[i] === " ") {
                 x += this.spaceWidth + this.spaceBetweenLetters;
                 continue;
@@ -60,9 +60,9 @@ class BitmapFont {
         }
     }
 
-    public drawTextRTL(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color?: string) : void {
-        var newPalette : Palette = <Palette>{ foreground: color };
-        for(var i = text.length-1; i >= 0; i--) {
+    public drawTextRTL(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color?: string): void {
+        var newPalette: Palette = <Palette>{ foreground: color };
+        for (var i = text.length - 1; i >= 0; i--) {
             if (text[i] === " ") {
                 x -= this.spaceWidth + this.spaceBetweenLetters;
                 continue;

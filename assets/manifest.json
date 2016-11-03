@@ -6,6 +6,13 @@
             "dark": "#b2593f",
             "light": "#ffd2a2",
             "white": "#ffffff"
+        },
+        "gameboy": {
+            "background": "#8bac0f",
+            "foreground": "#0f380f",
+            "dark": "#306230",
+            "light": "#9bbc0f",
+            "white": "#ffffff"
         }
     }, 
     "images": [

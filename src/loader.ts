@@ -22,11 +22,11 @@ class AssetLoader {
 
     tempCanvas: CanvasRenderingContext2D | null;
     unloadedAssets: number;
-    onload: ()=>void;
+    onload: () => void;
     prefix: string;
 
     constructor(manifest: string = "assets/manifest.json") {
-        this.onload = () => {};
+        this.onload = () => { };
         this.unloadedAssets = 0;
         this.images = {};
         this.fonts = {};
@@ -41,23 +41,23 @@ class AssetLoader {
                 "white": "#ffffff"
             }
         };
-        
+
         this.prefix = manifest.substring(0, manifest.lastIndexOf("/"));
         this.add(manifest);
     }
 
-    public static canonicalizePalette(p: Palette) : void {
+    public static canonicalizePalette(p: Palette): void {
         for (var color in p) {
             if (typeof color === "string") {
                 (<any>p)[color] = AssetLoader.canonicalizeHex((<any>p)[color]);
             } else {
                 console.error("palette has non-string key; this should never happen!");
-                console.log(color);            
+                console.log(color);
             }
         }
     }
 
-    public static canonicalizeHex(hex: string) : string {
+    public static canonicalizeHex(hex: string): string {
         var rgbColor = AssetLoader.hexToRgb(hex);
         if (rgbColor === null) {
             console.error("could not parse hex color " + hex);
@@ -67,11 +67,11 @@ class AssetLoader {
         }
     }
 
-    public static hexToRgb(hex: string) : Color | null {
+    public static hexToRgb(hex: string): Color | null {
         // https://stackoverflow.com/a/5624139
         // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
         var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-        hex = hex.replace(shorthandRegex, function(m, r, g, b) {
+        hex = hex.replace(shorthandRegex, function (m, r, g, b) {
             return r + r + g + g + b + b;
         });
 
@@ -83,18 +83,18 @@ class AssetLoader {
         } : null;
     }
 
-    public static colorToHex(c: Color) : string {
+    public static colorToHex(c: Color): string {
         return AssetLoader.rgbToHex(c.r, c.g, c.b);
     }
 
-    public static rgbToHex(r: number, g: number, b: number) : string {
+    public static rgbToHex(r: number, g: number, b: number): string {
         return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
     }
 
-    public add(manifest: string) : void {
+    public add(manifest: string): void {
         var xhr = new XMLHttpRequest();
         xhr.addEventListener("readystatechange", () => {
-            if (xhr.readyState === 4){
+            if (xhr.readyState === 4) {
                 if (xhr.status === 200) {
                     var resp = <ManifestXHRResponse>JSON.parse(xhr.responseText);
                     if (resp.images !== undefined) { this.unloadedAssets += resp.images.length; }
@@ -122,10 +122,10 @@ class AssetLoader {
         xhr.send(null);
     }
 
-    public static composite(outdata: Uint8ClampedArray, imgdata: Uint8ClampedArray, bgdata: Uint8ClampedArray, inPalette: Palette, outPalette: Palette) : void {
+    public static composite(outdata: Uint8ClampedArray, imgdata: Uint8ClampedArray, bgdata: Uint8ClampedArray, inPalette: Palette, outPalette: Palette): void {
         AssetLoader.canonicalizePalette(inPalette);
 
-        var rgbPalette : { [name: string]: Color } = {};
+        var rgbPalette: { [name: string]: Color } = {};
         for (var color in outPalette) {
             let rgb = AssetLoader.hexToRgb(<string>(<any>outPalette)[color]);
             if (rgb === null) {
@@ -135,23 +135,24 @@ class AssetLoader {
                 rgbPalette[color] = rgb;
             }
         }
-        for (var i = 0; i < imgdata.length; i+=4) {
-            let hexColor = AssetLoader.rgbToHex(imgdata[i], imgdata[i+1], imgdata[i+2]);
-            let outColor : Color = { r: bgdata[i], g: bgdata[i+1], b: bgdata[i+2] };
-            for(var color in inPalette) {
+
+        for (var i = 0; i < imgdata.length; i += 4) {
+            let hexColor = AssetLoader.rgbToHex(imgdata[i], imgdata[i + 1], imgdata[i + 2]);
+            let outColor: Color = { r: bgdata[i], g: bgdata[i + 1], b: bgdata[i + 2] };
+            for (var color in inPalette) {
                 if (hexColor === (<any>inPalette)[color]) {
                     outColor = rgbPalette[color];
                     break;
                 }
             }
             outdata[i] = outColor.r;
-            outdata[i+1] = outColor.g;
-            outdata[i+2] = outColor.b;
-            outdata[i+3] = 255;
+            outdata[i + 1] = outColor.g;
+            outdata[i + 2] = outColor.b;
+            outdata[i + 3] = 255;
         }
     }
 
-    public switchPalette(oldName: string, newName: string) : void {
+    public switchPalette(oldName: string, newName: string): void {
         if (oldName !== newName) {
             for (var img in this.images) {
                 let idata = this.getImage(img).data;
@@ -167,8 +168,8 @@ class AssetLoader {
         }
     }
 
-    public loadImage(imagePath: string, recolor: boolean = false, save: boolean = true, callback?: (x?: string)=>void) : void {
-        var name = imagePath.substring(imagePath.lastIndexOf("/")+1, imagePath.lastIndexOf("."));
+    public loadImage(imagePath: string, recolor: boolean = false, save: boolean = true, callback?: (x?: string) => void): void {
+        var name = imagePath.substring(imagePath.lastIndexOf("/") + 1, imagePath.lastIndexOf("."));
         if (this.images.hasOwnProperty(name)) {
             console.log("skipping cached image " + imagePath);
             return;
@@ -176,9 +177,9 @@ class AssetLoader {
         var img = new Image(); //document.createElement("img");
         img.addEventListener("load", () => {
             if (this.tempCanvas == null) {
-                var newCanvas = <Object|null>(<HTMLCanvasElement>document.createElement("canvas")).getContext("2d");
+                var newCanvas = <Object | null>(<HTMLCanvasElement>document.createElement("canvas")).getContext("2d");
                 if (typeof newCanvas === "object") {
-                    this.tempCanvas = <CanvasRenderingContext2D>newCanvas;                                        
+                    this.tempCanvas = <CanvasRenderingContext2D>newCanvas;
                 } else {
                     console.error("could not create canvas or context for temp loader");
                     return;
@@ -199,8 +200,8 @@ class AssetLoader {
         img.src = this.prefix + "/" + imagePath;
     }
 
-    public loadFont(font: XHRFont) : void {
-        var name = font.path.substring(font.path.lastIndexOf("/")+1, font.path.lastIndexOf("."));
+    public loadFont(font: XHRFont): void {
+        var name = font.path.substring(font.path.lastIndexOf("/") + 1, font.path.lastIndexOf("."));
         if (this.fonts.hasOwnProperty(name)) {
             console.log("skipping cached font " + font.path);
             return;
@@ -214,11 +215,41 @@ class AssetLoader {
         });
     }
 
-    public getImage(name: string) : ImageData {
+    public getImage(name: string): ImageData {
         return (<any>this.images)[name];
     }
 
-    public getFont(name: string) : BitmapFont {
+    public getFont(name: string): BitmapFont {
         return (<any>this.fonts)[name];
+    }
+
+    public exportPalette(name: string): void {
+        if (this.tempCanvas == null) {
+            var newCanvas = <Object | null>(<HTMLCanvasElement>document.createElement("canvas")).getContext("2d");
+            if (typeof newCanvas === "object") {
+                this.tempCanvas = <CanvasRenderingContext2D>newCanvas;
+            } else {
+                console.error("could not create canvas or context for temp loader");
+                return;
+            }
+        }
+        var colors: string[] = [];
+        for (var key in this.palettes[name]) { colors.push(key); }
+        colors.sort();
+        this.tempCanvas.canvas.width = colors.length;
+        this.tempCanvas.canvas.height = 1;
+        var tempData = new ImageData(colors.length, 1);
+        for (var i = 0; i < colors.length; i++) {
+            let color = AssetLoader.hexToRgb((<any>this.palettes[name])[colors[i]]);
+            if (color !== null) {
+                tempData.data[i*4] = color.r;
+                tempData.data[i*4+1] = color.g;
+                tempData.data[i*4+2] = color.b;
+                tempData.data[i*4+3] = 255;
+            }
+        }
+        console.log(colors);
+        this.tempCanvas.putImageData(tempData, 0, 0);
+        window.location.assign(this.tempCanvas.canvas.toDataURL("image/png"));
     }
 }
