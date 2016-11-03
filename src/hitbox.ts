@@ -30,8 +30,8 @@ class HitDetector {
     // there are some experimental canvas features for doing something
     // similar with addHitRegion and friends, but this works fine
     private unnamedRegionsCount: number;
-    private regions: { [name: string]: HitRegion };
     private ctx: CanvasRenderingContext2D;
+    public regions: { [name: string]: HitRegion };
 
     constructor(ctx: CanvasRenderingContext2D) {
         this.unnamedRegionsCount = 0;

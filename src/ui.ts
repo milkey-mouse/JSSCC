@@ -86,6 +86,7 @@ class CanvasRenderer {
             this.initChannelHitbox(i);
         }
         this.initPositionHitbox();
+        this.initButtons();
     }
 
     public rescale(): void {
@@ -129,6 +130,17 @@ class CanvasRenderer {
             this.ctx.putImageData(checkered, x + i, y);
             this.ctx.fillRect(x + i + 1, y, 2, h);
         }
+    }
+
+    public drawButton(x: number, y: number, w: number, h: number): void {
+        this.ctx.strokeStyle = this.palette.light;
+        this.ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+        this.ctx.strokeStyle = this.palette.foreground;
+        this.ctx.strokeRect(x + 2, y + 2, w - 3, h - 3);
+        this.ctx.fillStyle = this.palette.dark;
+        this.ctx.fillRect(x + 1.5, y + 1.5, w - 3, h - 3);
+        this.ctx.strokeStyle = this.palette.foreground;
+        this.ctx.strokeRect(x, y, w, h);
     }
 
     public drawLogos(): void {
@@ -272,11 +284,11 @@ class CanvasRenderer {
         var slider = new HitRegion(58, 402, 236, 16);
         slider.cursor = "ew-resize";
         var moveSlider = <EventListener>(e: MouseEvent) => {
-            this.song.position = Math.min(1, Math.max(0, (e.offsetX - 58) / 236));
+            this.song.position = Math.min(1, Math.max(0, (e.offsetX - 57) / 236));
             this.drawPositionSlider();
         };
         slider.onmousedown = (x: number, y: number) => {
-            this.song.position = Math.min(1, Math.max(0, (x - 58) / 236));
+            this.song.position = Math.min(1, Math.max(0, (x - 57) / 236));
             this.drawPositionSlider();
             window.addEventListener("mousemove", moveSlider, false);
             window.addEventListener("mouseup", (e: MouseEvent) => {
@@ -284,6 +296,34 @@ class CanvasRenderer {
             }, false);
         };
         this.hitDetector.addHitRegion(slider, "positionSlider");
+    }
+
+    public initButtons(): void {
+        var loop = new HitRegion(300, 402, 20, 17);
+        loop.onmousedown = (x: number, y: number) => {
+            this.song.repeat = !this.song.repeat;
+            this.drawRepeat();
+        };
+        this.hitDetector.addHitRegion(loop, "loop");
+    }
+
+    public drawRepeat(): void {
+        this.drawButton(300.5, 402.5, 20, 16);
+        var repeatIcon = this.loader.getImage("repeat");
+        if (!this.song.repeat) {
+            var recolored = new ImageData(repeatIcon.width, repeatIcon.height);
+            AssetLoader.composite(
+                recolored.data,
+                repeatIcon.data,
+                repeatIcon.data,
+                this.palette, <Palette>{
+                    light: this.palette.foreground,
+                    dark: this.palette.dark
+                });
+            this.ctx.putImageData(recolored, 304, 405);
+        } else {
+            this.ctx.putImageData(repeatIcon, 304, 405);
+        }
     }
 
     public drawChannel(idx: number): void {
@@ -331,8 +371,8 @@ class CanvasRenderer {
         this.ctx.fillRect(x + 0.5, y + 127.5, 32, 1);
 
         if (idx % 16 === 9) {
-            this.ctx.putImageData(this.loader.getImage("nowave"), x, y + 118);
-            this.ctx.putImageData(this.loader.getImage("drum"), x + 3, y + 123);
+            this.drawButton(x, y + 119, 33, 17);
+            this.ctx.putImageData(this.loader.getImage("drum"), x + 3, y + 124);
         } else if (chan.wave !== null) {
             this.ctx.fillStyle = this.palette.light;
             for (var i = 0; i < this.song.channels.length; i++) {
@@ -405,6 +445,7 @@ class CanvasRenderer {
         this.drawPositionSlider();
         this.drawSongInfo();
         this.drawLabels();
+        this.drawRepeat();
         for (var idx = 0; idx < this.song.channels.length; idx++) {
             this.drawChannel(idx);
         }

@@ -400,6 +400,7 @@ var Song = (function () {
         }
         this.position = 0;
         this.buffer = 1;
+        this.repeat = true;
         this.fileName = null;
     }
     return Song;
@@ -526,6 +527,7 @@ var CanvasRenderer = (function () {
             this.initChannelHitbox(i);
         }
         this.initPositionHitbox();
+        this.initButtons();
     };
     CanvasRenderer.prototype.rescale = function () {
         if (!this.initialized) {
@@ -569,6 +571,16 @@ var CanvasRenderer = (function () {
             this.ctx.putImageData(checkered, x + i, y);
             this.ctx.fillRect(x + i + 1, y, 2, h);
         }
+    };
+    CanvasRenderer.prototype.drawButton = function (x, y, w, h) {
+        this.ctx.strokeStyle = this.palette.light;
+        this.ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+        this.ctx.strokeStyle = this.palette.foreground;
+        this.ctx.strokeRect(x + 2, y + 2, w - 3, h - 3);
+        this.ctx.fillStyle = this.palette.dark;
+        this.ctx.fillRect(x + 1.5, y + 1.5, w - 3, h - 3);
+        this.ctx.strokeStyle = this.palette.foreground;
+        this.ctx.strokeRect(x, y, w, h);
     };
     CanvasRenderer.prototype.drawLogos = function () {
         this.ctx.putImageData(this.loader.getImage("logo"), 15, 10);
@@ -701,11 +713,11 @@ var CanvasRenderer = (function () {
         var slider = new HitRegion(58, 402, 236, 16);
         slider.cursor = "ew-resize";
         var moveSlider = function (e) {
-            _this.song.position = Math.min(1, Math.max(0, (e.offsetX - 58) / 236));
+            _this.song.position = Math.min(1, Math.max(0, (e.offsetX - 57) / 236));
             _this.drawPositionSlider();
         };
         slider.onmousedown = function (x, y) {
-            _this.song.position = Math.min(1, Math.max(0, (x - 58) / 236));
+            _this.song.position = Math.min(1, Math.max(0, (x - 57) / 236));
             _this.drawPositionSlider();
             window.addEventListener("mousemove", moveSlider, false);
             window.addEventListener("mouseup", function (e) {
@@ -713,6 +725,30 @@ var CanvasRenderer = (function () {
             }, false);
         };
         this.hitDetector.addHitRegion(slider, "positionSlider");
+    };
+    CanvasRenderer.prototype.initButtons = function () {
+        var _this = this;
+        var loop = new HitRegion(300, 402, 20, 17);
+        loop.onmousedown = function (x, y) {
+            _this.song.repeat = !_this.song.repeat;
+            _this.drawRepeat();
+        };
+        this.hitDetector.addHitRegion(loop, "loop");
+    };
+    CanvasRenderer.prototype.drawRepeat = function () {
+        this.drawButton(300.5, 402.5, 20, 16);
+        var repeatIcon = this.loader.getImage("repeat");
+        if (!this.song.repeat) {
+            var recolored = new ImageData(repeatIcon.width, repeatIcon.height);
+            AssetLoader.composite(recolored.data, repeatIcon.data, repeatIcon.data, this.palette, {
+                light: this.palette.foreground,
+                dark: this.palette.dark
+            });
+            this.ctx.putImageData(recolored, 304, 405);
+        }
+        else {
+            this.ctx.putImageData(repeatIcon, 304, 405);
+        }
     };
     CanvasRenderer.prototype.drawChannel = function (idx) {
         var x = ((idx % 16) * 36) + 58;
@@ -750,8 +786,8 @@ var CanvasRenderer = (function () {
         this.ctx.fillStyle = this.palette.light;
         this.ctx.fillRect(x + 0.5, y + 127.5, 32, 1);
         if (idx % 16 === 9) {
-            this.ctx.putImageData(this.loader.getImage("nowave"), x, y + 118);
-            this.ctx.putImageData(this.loader.getImage("drum"), x + 3, y + 123);
+            this.drawButton(x, y + 119, 33, 17);
+            this.ctx.putImageData(this.loader.getImage("drum"), x + 3, y + 124);
         }
         else if (chan.wave !== null) {
             this.ctx.fillStyle = this.palette.light;
@@ -815,6 +851,7 @@ var CanvasRenderer = (function () {
         this.drawPositionSlider();
         this.drawSongInfo();
         this.drawLabels();
+        this.drawRepeat();
         for (var idx = 0; idx < this.song.channels.length; idx++) {
             this.drawChannel(idx);
         }
