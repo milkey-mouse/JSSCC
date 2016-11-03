@@ -91,6 +91,7 @@ var HitRegion = (function () {
         this.over = false;
         this.cursor = null;
         this.onmousedown = null;
+        this.onmouseup = null;
         this.onenter = null;
         this.onexit = null;
     }
@@ -100,19 +101,33 @@ var HitDetector = (function () {
     function HitDetector(ctx) {
         var _this = this;
         this.unnamedRegionsCount = 0;
+        this.mouseDown = false;
         this.regions = {};
         this.ctx = ctx;
         // use lambdas to have the right context for 'this'
         ctx.canvas.addEventListener("mousedown", function (e) { _this.onMouseDown(e); }, false);
         ctx.canvas.addEventListener("mousemove", function (e) { _this.onMouseMove(e); }, false);
+        ctx.canvas.addEventListener("mouseup", function (e) { _this.onMouseUp(e); }, false);
     }
     HitDetector.prototype.onMouseDown = function (event) {
+        this.mouseDown = true;
         for (var regionName in this.regions) {
             var r = this.regions[regionName];
             if (r.onmousedown !== null &&
                 event.offsetY >= r.y && event.offsetY <= r.y + r.h &&
                 event.offsetX >= r.x && event.offsetX <= r.x + r.w) {
                 r.onmousedown(event.offsetX, event.offsetY);
+            }
+        }
+    };
+    HitDetector.prototype.onMouseUp = function (event) {
+        this.mouseDown = false;
+        for (var regionName in this.regions) {
+            var r = this.regions[regionName];
+            if (r.onmouseup !== null &&
+                event.offsetY >= r.y && event.offsetY <= r.y + r.h &&
+                event.offsetX >= r.x && event.offsetX <= r.x + r.w) {
+                r.onmouseup(event.offsetX, event.offsetY);
             }
         }
     };
@@ -126,16 +141,16 @@ var HitDetector = (function () {
                 this.ctx.canvas.style.cursor = r.cursor;
             }
             if (over === true && r.over === false) {
+                r.over = true;
                 if (r.onenter !== null) {
                     r.onenter();
                 }
-                r.over = true;
             }
             else if (over === false && r.over === true) {
+                r.over = false;
                 if (r.onexit !== null) {
                     r.onexit();
                 }
-                r.over = false;
             }
         }
     };
@@ -730,14 +745,22 @@ var CanvasRenderer = (function () {
     CanvasRenderer.prototype.initButtons = function () {
         var _this = this;
         var loop = new HitRegion(300, 402, 20, 17);
+        var mouseup = function (e) {
+            _this.drawRepeat();
+            window.removeEventListener("mouseup", mouseup, false);
+        };
         loop.onmousedown = function (x, y) {
+            _this.drawRepeat();
+            window.addEventListener("mouseup", mouseup, false);
+        };
+        loop.onmouseup = function (x, y) {
             _this.song.repeat = !_this.song.repeat;
             _this.drawRepeat();
         };
         this.hitDetector.addHitRegion(loop, "loop");
     };
     CanvasRenderer.prototype.drawRepeat = function () {
-        this.drawButton(300.5, 402.5, 20, 16);
+        this.drawButton(300.5, 402.5, 20, 16, this.hitDetector.regions["loop"].over && this.hitDetector.mouseDown);
         var repeatIcon = this.loader.getImage("repeat");
         if (!this.song.repeat) {
             var recolored = new ImageData(repeatIcon.width, repeatIcon.height);

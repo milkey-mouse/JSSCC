@@ -8,6 +8,7 @@ class HitRegion {
     cursor: string | null;
 
     onmousedown: ((x: number, y: number) => void) | null;
+    onmouseup: ((x: number, y: number) => void) | null;
     onenter: (() => void) | null;
     onexit: (() => void) | null;
 
@@ -21,6 +22,7 @@ class HitRegion {
         this.cursor = null;
 
         this.onmousedown = null;
+        this.onmouseup = null;
         this.onenter = null;
         this.onexit = null;
     }
@@ -31,19 +33,24 @@ class HitDetector {
     // similar with addHitRegion and friends, but this works fine
     private unnamedRegionsCount: number;
     private ctx: CanvasRenderingContext2D;
+
+    public mouseDown: boolean;
     public regions: { [name: string]: HitRegion };
 
     constructor(ctx: CanvasRenderingContext2D) {
         this.unnamedRegionsCount = 0;
+        this.mouseDown = false;
         this.regions = {};
         this.ctx = ctx;
 
         // use lambdas to have the right context for 'this'
         ctx.canvas.addEventListener("mousedown", (e: MouseEvent) => { this.onMouseDown(e); }, false);
         ctx.canvas.addEventListener("mousemove", (e: MouseEvent) => { this.onMouseMove(e); }, false);
+        ctx.canvas.addEventListener("mouseup", (e: MouseEvent) => { this.onMouseUp(e); }, false);
     }
-
-    public onMouseDown(event: MouseEvent) {
+    
+    public onMouseDown(event: MouseEvent): void {
+        this.mouseDown = true;
         for (var regionName in this.regions) {
             let r = this.regions[regionName];
             if (r.onmousedown !== null &&
@@ -54,7 +61,19 @@ class HitDetector {
         }
     }
 
-    public onMouseMove(event: MouseEvent) {
+    public onMouseUp(event: MouseEvent): void {
+        this.mouseDown = false;
+        for (var regionName in this.regions) {
+            let r = this.regions[regionName];
+            if (r.onmouseup !== null &&
+                event.offsetY >= r.y && event.offsetY <= r.y + r.h &&
+                event.offsetX >= r.x && event.offsetX <= r.x + r.w) {
+                r.onmouseup(event.offsetX, event.offsetY);
+            }
+        }
+    }
+
+    public onMouseMove(event: MouseEvent): void {
         this.ctx.canvas.style.cursor = "auto";
         for (var regionName in this.regions) {
             let r = this.regions[regionName];
@@ -64,11 +83,11 @@ class HitDetector {
                 this.ctx.canvas.style.cursor = r.cursor;
             }
             if (over === true && r.over === false) {
-                if (r.onenter !== null) { r.onenter(); }
                 r.over = true;
+                if (r.onenter !== null) { r.onenter(); }
             } else if (over === false && r.over === true) {
-                if (r.onexit !== null) { r.onexit(); }
                 r.over = false;
+                if (r.onexit !== null) { r.onexit(); }
             }
         }
     }

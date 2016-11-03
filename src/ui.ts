@@ -300,7 +300,15 @@ class CanvasRenderer {
 
     public initButtons(): void {
         var loop = new HitRegion(300, 402, 20, 17);
+        var mouseup = <EventListener>(e: Event) => {
+            this.drawRepeat();
+            window.removeEventListener("mouseup", mouseup, false);
+        };
         loop.onmousedown = (x: number, y: number) => {
+            this.drawRepeat();
+            window.addEventListener("mouseup", mouseup, false); 
+        };
+        loop.onmouseup = (x: number, y: number) => {
             this.song.repeat = !this.song.repeat;
             this.drawRepeat();
         };
@@ -308,7 +316,7 @@ class CanvasRenderer {
     }
 
     public drawRepeat(): void {
-        this.drawButton(300.5, 402.5, 20, 16);
+        this.drawButton(300.5, 402.5, 20, 16, this.hitDetector.regions["loop"].over && this.hitDetector.mouseDown);
         var repeatIcon = this.loader.getImage("repeat");
         if (!this.song.repeat) {
             var recolored = new ImageData(repeatIcon.width, repeatIcon.height);
