@@ -1,7 +1,8 @@
-class CanvasUI {
+class CanvasRenderer {
     ctx: CanvasRenderingContext2D;
     canvas: HTMLCanvasElement;
     loader: AssetLoader;
+    hitDetector: HitDetector;
 
     palette: Palette;
     paletteName: string;
@@ -76,6 +77,14 @@ class CanvasUI {
         this.initialized = true;
         this.rescale();
         this.clear();
+
+        this.hitDetector = new HitDetector(this.ctx);
+
+        // add hit regions for each channel
+        for (var i = 0; i < this.song.channels.length; i++) {
+            this.initChannelHitbox(i);
+        }
+        this.initPositionHitbox();
     }
 
     public rescale() : void {
@@ -129,34 +138,26 @@ class CanvasUI {
         medium.drawText(this.ctx, "Alpha v. 0.0.1", 39, 39, "#FFF");
         medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 453, 4, this.palette.dark); //drop shadow
         medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 452, 3, "#FFF");
-        medium.drawText(this.ctx, "Inspired by Gashisoft's GXSCC", 492, 14, this.palette.dark);
+        medium.drawText(this.ctx, "Inspired by Gashisoft GXSCC", 500, 14, this.palette.dark);
         medium.drawText(this.ctx, "This project is open source: https://github.com/milkey-mouse/JSSCC", 44, 435, this.palette.dark);
     }
 
     public drawBuffer() : void {
-        this.ctx.setTransform(1, 0, 0, 1, 0.5, 0.5);
         this.ctx.fillStyle = this.palette.background;
         this.ctx.fillRect(412, 32, 219, 9);
         this.ctx.fillStyle = this.palette.light;
-        this.ctx.fillRect(412, 32, Math.round(219*this.song.buffer), 9);
-        this.ctx.strokeStyle = this.palette.light;
-        this.ctx.strokeRect(412 + Math.round(219*this.song.buffer), 32, 1, 9);
+        this.ctx.fillRect(413, 33, Math.round(218*this.song.buffer), 8);
         this.ctx.strokeStyle = this.palette.foreground;
-        this.ctx.strokeRect(412, 32, 219, 9);
-        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.strokeRect(412.5, 32.5, 219, 9);
     }
 
     public drawPositionSlider() : void {
-        this.ctx.setTransform(1, 0, 0, 1, 0.5, 0.5);
         this.ctx.fillStyle = this.palette.background;
         this.ctx.fillRect(58, 402, 236, 16);
         this.ctx.fillStyle = this.palette.dark;
-        this.ctx.fillRect(58, 402, Math.round(236*this.song.position), 16);
-        this.ctx.strokeStyle = this.palette.dark;
-        this.ctx.strokeRect(58 + Math.round(236*this.song.position), 402, 1, 16);
+        this.ctx.fillRect(59, 402, Math.round(235*this.song.position), 16);
         this.ctx.strokeStyle = this.palette.foreground;
-        this.ctx.strokeRect(58, 402, 236, 16);
-        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.strokeRect(58.5, 402.5, 236, 16);
     }
 
     public drawSongInfo() : void {
@@ -183,7 +184,7 @@ class CanvasUI {
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
         // song name
-        var path = this.song.fileName === null ? "Drag and drop a MIDI file into this window to play." : this.song.fileName;
+        var path = this.song.fileName === null ? "Drag and drop a MIDI file into this window to play" : this.song.fileName;
         this.loader.getFont("large").drawText(this.ctx, path, 60, 385, "#FFD2A2");
 
         // tick, bpm, tb
@@ -200,13 +201,13 @@ class CanvasUI {
         var pointer = this.loader.getImage("pointer");
         small.drawTextRTL(this.ctx, "BUFFER", 410, 35, this.palette.foreground);
         this.ctx.putImageData(pointer, 412, 27);
-        small.drawText(this.ctx, "OUT", 420, 25, this.palette.foreground);    
+        small.drawText(this.ctx, "OUT", 421, 25, this.palette.foreground);    
         this.ctx.putImageData(pointer, 446, 27);
-        small.drawText(this.ctx, "DANGER", 454, 25, this.palette.foreground);    
+        small.drawText(this.ctx, "DANGER", 455, 25, this.palette.foreground);    
         this.ctx.putImageData(pointer, 520, 27);
-        small.drawText(this.ctx, "GOOD", 528, 25, this.palette.foreground);    
+        small.drawText(this.ctx, "GOOD", 529, 25, this.palette.foreground);    
         this.ctx.putImageData(pointer, 595, 27);
-        small.drawText(this.ctx, "GREAT", 603, 25, this.palette.foreground); 
+        small.drawText(this.ctx, "GREAT", 604, 25, this.palette.foreground); 
         for (var y = 53; y <= 221; y += 168)
         {
                 small.drawTextRTL(this.ctx, "MUTE/POLY", 54, y, this.palette.foreground);
@@ -249,6 +250,36 @@ class CanvasUI {
             var height = Math.floor(Math.abs(i) / 2 + 1.5);
             this.ctx.strokeRect(x+(i*2)+(i > 0 ? 13 : 16), y+5-height, 0, height);
         }
+    }
+
+    public initChannelHitbox(idx: number) : void {
+        var x = ((idx % 16) * 36) + 58;
+        var y = (Math.floor(idx / 16) * 168) + 49;
+
+        var region = new HitRegion(x, y, 33, 13);
+        region.onmousedown = (x: number, y: number) => {
+            this.song.channels[idx].mute = !this.song.channels[idx].mute;
+            this.drawChannel(idx);
+        };
+        this.hitDetector.addHitRegion(region, "chan" + idx);
+    }
+
+    public initPositionHitbox() : void {
+        var slider = new HitRegion(58, 402, 236, 16);
+        slider.cursor = "ew-resize";
+        var moveSlider = <EventListener>(e: MouseEvent) => {
+            this.song.position = Math.min(1, Math.max(0, (e.offsetX - 58) / 236));
+            this.drawPositionSlider();
+        };
+        slider.onmousedown = (x: number, y: number) => {
+            this.song.position = Math.min(1, Math.max(0, (x - 58) / 236));
+            this.drawPositionSlider();
+            window.addEventListener("mousemove", moveSlider, false);
+            window.addEventListener("mouseup", (e: MouseEvent) => {
+                window.removeEventListener("mousemove", moveSlider, false);
+            }, false);
+        };
+        this.hitDetector.addHitRegion(slider, "positionSlider");
     }
 
     public drawChannel(idx: number) : void {
@@ -300,7 +331,7 @@ class CanvasUI {
             this.ctx.putImageData(this.loader.getImage("drum"), x+3, y+123);
         } else if (chan.wave !== null) {
             this.ctx.fillStyle = this.palette.light;
-            for(var i = 0; i < 32; i++) {
+            for(var i = 0; i < this.song.channels.length; i++) {
                 var val = Math.round(chan.wave(i / 32) * 7.5);
                 if (val >= 0) { val++; }
                 this.ctx.fillRect(x+i+0.5, y+128.5, 1, -val);
@@ -370,13 +401,13 @@ class CanvasUI {
         this.drawPositionSlider();
         this.drawSongInfo();
         this.drawLabels();
-        for (var idx = 0; idx < 32; idx++) {
+        for (var idx = 0; idx < this.song.channels.length; idx++) {
             this.drawChannel(idx);
         }
     }
 }
 
-class FontTest extends CanvasUI {
+class FontTest extends CanvasRenderer {
     constructor(manifest: string = "assets/manifest.json") {
         super(manifest);
     }
@@ -400,4 +431,4 @@ class FontTest extends CanvasUI {
     }
 }
 
-var ui = new CanvasUI();
+var ui = new CanvasRenderer();

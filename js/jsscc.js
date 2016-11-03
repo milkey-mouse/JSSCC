@@ -82,6 +82,79 @@ var BitmapFont = (function () {
     BitmapFont.fontPalette = { foreground: "#000" };
     return BitmapFont;
 }());
+var HitRegion = (function () {
+    function HitRegion(x, y, width, height) {
+        this.x = x;
+        this.y = y;
+        this.w = width;
+        this.h = height;
+        this.over = false;
+        this.cursor = null;
+        this.onmousedown = null;
+        this.onenter = null;
+        this.onexit = null;
+    }
+    return HitRegion;
+}());
+var HitDetector = (function () {
+    function HitDetector(ctx) {
+        var _this = this;
+        this.unnamedRegionsCount = 0;
+        this.regions = {};
+        this.ctx = ctx;
+        // use lambdas to have the right context for 'this'
+        ctx.canvas.addEventListener("mousedown", function (e) { _this.onMouseDown(e); }, false);
+        ctx.canvas.addEventListener("mousemove", function (e) { _this.onMouseMove(e); }, false);
+    }
+    HitDetector.prototype.onMouseDown = function (event) {
+        for (var regionName in this.regions) {
+            var r = this.regions[regionName];
+            if (r.onmousedown !== null &&
+                event.offsetY >= r.y && event.offsetY <= r.y + r.h &&
+                event.offsetX >= r.x && event.offsetX <= r.x + r.w) {
+                r.onmousedown(event.offsetX, event.offsetY);
+            }
+        }
+    };
+    HitDetector.prototype.onMouseMove = function (event) {
+        this.ctx.canvas.style.cursor = "auto";
+        for (var regionName in this.regions) {
+            var r = this.regions[regionName];
+            var over = event.offsetY >= r.y && event.offsetY <= r.y + r.h &&
+                event.offsetX >= r.x && event.offsetX <= r.x + r.w;
+            if (over && r.cursor !== null) {
+                this.ctx.canvas.style.cursor = r.cursor;
+            }
+            if (over === true && r.over === false) {
+                if (r.onenter !== null) {
+                    r.onenter();
+                }
+                r.over = true;
+            }
+            else if (over === false && r.over === true) {
+                if (r.onexit !== null) {
+                    r.onexit();
+                }
+                r.over = false;
+            }
+        }
+    };
+    HitDetector.prototype.addHitRegion = function (r, key) {
+        if (key == null) {
+            key = "region" + this.unnamedRegionsCount;
+            this.unnamedRegionsCount++;
+        }
+        this.regions[key] = r;
+        return key;
+    };
+    HitDetector.prototype.removeHitRegion = function (key) {
+        delete this.regions[key];
+    };
+    HitDetector.prototype.clearHitRegions = function () {
+        this.regions = {};
+    };
+    return HitDetector;
+}());
 var Palette = (function () {
     function Palette() {
     }
@@ -286,14 +359,15 @@ var AssetLoader = (function () {
     return AssetLoader;
 }());
 var Song = (function () {
-    function Song() {
+    function Song(channelCount) {
+        if (channelCount === void 0) { channelCount = 32; }
         //initialize with default channels
         this.channels = [];
-        for (var i = 0; i < 32; i++) {
+        for (var i = 0; i < channelCount; i++) {
             this.channels.push(new Channel());
         }
         this.position = 0;
-        this.buffer = 0;
+        this.buffer = 1;
         this.fileName = null;
     }
     return Song;
@@ -349,8 +423,8 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var CanvasUI = (function () {
-    function CanvasUI(manifest) {
+var CanvasRenderer = (function () {
+    function CanvasRenderer(manifest) {
         var _this = this;
         if (manifest === void 0) { manifest = "assets/manifest.json"; }
         this.loader = new AssetLoader(manifest);
@@ -379,7 +453,7 @@ var CanvasUI = (function () {
             }
         };
     }
-    CanvasUI.prototype.switchPalette = function (name, redraw) {
+    CanvasRenderer.prototype.switchPalette = function (name, redraw) {
         if (name === void 0) { name = "default"; }
         if (redraw === void 0) { redraw = true; }
         if (name !== this.paletteName) {
@@ -392,7 +466,7 @@ var CanvasUI = (function () {
             this.redraw();
         }
     };
-    CanvasUI.prototype.initCanvas = function () {
+    CanvasRenderer.prototype.initCanvas = function () {
         if (this.initialized) {
             return;
         }
@@ -413,8 +487,14 @@ var CanvasUI = (function () {
         this.initialized = true;
         this.rescale();
         this.clear();
+        this.hitDetector = new HitDetector(this.ctx);
+        // add hit regions for each channel
+        for (var i = 0; i < this.song.channels.length; i++) {
+            this.initChannelHitbox(i);
+        }
+        this.initPositionHitbox();
     };
-    CanvasUI.prototype.rescale = function () {
+    CanvasRenderer.prototype.rescale = function () {
         if (!this.initialized) {
             return;
         }
@@ -425,14 +505,14 @@ var CanvasUI = (function () {
         this.ctx.canvas.style.width = (this.ctx.canvas.width * this.scale) + "px";
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     };
-    CanvasUI.prototype.clear = function () {
+    CanvasRenderer.prototype.clear = function () {
         if (!this.initialized) {
             return;
         }
         this.ctx.fillStyle = this.palette.background;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     };
-    CanvasUI.prototype.drawTexture = function (x, y, w, h) {
+    CanvasRenderer.prototype.drawTexture = function (x, y, w, h) {
         this.ctx.fillStyle = this.palette.dark;
         var checkered = this.ctx.createImageData(1, h);
         var d = checkered.data;
@@ -455,7 +535,7 @@ var CanvasUI = (function () {
             this.ctx.fillRect(x + i + 1, y, 2, h);
         }
     };
-    CanvasUI.prototype.drawLogos = function () {
+    CanvasRenderer.prototype.drawLogos = function () {
         this.ctx.putImageData(this.loader.getImage("logo"), 15, 10);
         this.ctx.putImageData(this.loader.getImage("sparkles"), 424, 4);
         this.drawTexture(358, 410, 64, 32);
@@ -467,34 +547,26 @@ var CanvasUI = (function () {
         medium.drawText(this.ctx, "Alpha v. 0.0.1", 39, 39, "#FFF");
         medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 453, 4, this.palette.dark); //drop shadow
         medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 452, 3, "#FFF");
-        medium.drawText(this.ctx, "Inspired by Gashisoft's GXSCC", 492, 14, this.palette.dark);
+        medium.drawText(this.ctx, "Inspired by Gashisoft GXSCC", 500, 14, this.palette.dark);
         medium.drawText(this.ctx, "This project is open source: https://github.com/milkey-mouse/JSSCC", 44, 435, this.palette.dark);
     };
-    CanvasUI.prototype.drawBuffer = function () {
-        this.ctx.setTransform(1, 0, 0, 1, 0.5, 0.5);
+    CanvasRenderer.prototype.drawBuffer = function () {
         this.ctx.fillStyle = this.palette.background;
         this.ctx.fillRect(412, 32, 219, 9);
         this.ctx.fillStyle = this.palette.light;
-        this.ctx.fillRect(412, 32, Math.round(219 * this.song.buffer), 9);
-        this.ctx.strokeStyle = this.palette.light;
-        this.ctx.strokeRect(412 + Math.round(219 * this.song.buffer), 32, 1, 9);
+        this.ctx.fillRect(413, 33, Math.round(218 * this.song.buffer), 8);
         this.ctx.strokeStyle = this.palette.foreground;
-        this.ctx.strokeRect(412, 32, 219, 9);
-        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.strokeRect(412.5, 32.5, 219, 9);
     };
-    CanvasUI.prototype.drawPositionSlider = function () {
-        this.ctx.setTransform(1, 0, 0, 1, 0.5, 0.5);
+    CanvasRenderer.prototype.drawPositionSlider = function () {
         this.ctx.fillStyle = this.palette.background;
         this.ctx.fillRect(58, 402, 236, 16);
         this.ctx.fillStyle = this.palette.dark;
-        this.ctx.fillRect(58, 402, Math.round(236 * this.song.position), 16);
-        this.ctx.strokeStyle = this.palette.dark;
-        this.ctx.strokeRect(58 + Math.round(236 * this.song.position), 402, 1, 16);
+        this.ctx.fillRect(59, 402, Math.round(235 * this.song.position), 16);
         this.ctx.strokeStyle = this.palette.foreground;
-        this.ctx.strokeRect(58, 402, 236, 16);
-        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.strokeRect(58.5, 402.5, 236, 16);
     };
-    CanvasUI.prototype.drawSongInfo = function () {
+    CanvasRenderer.prototype.drawSongInfo = function () {
         this.ctx.setTransform(1, 0, 0, 1, 0.5, 0.5);
         // song name
         this.ctx.fillStyle = this.palette.dark;
@@ -512,7 +584,7 @@ var CanvasUI = (function () {
         this.ctx.strokeRect(198, 421, 20, 9);
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         // song name
-        var path = this.song.fileName === null ? "Drag and drop a MIDI file into this window to play." : this.song.fileName;
+        var path = this.song.fileName === null ? "Drag and drop a MIDI file into this window to play" : this.song.fileName;
         this.loader.getFont("large").drawText(this.ctx, path, 60, 385, "#FFD2A2");
         // tick, bpm, tb
         var small = this.loader.getFont("small");
@@ -522,18 +594,18 @@ var CanvasUI = (function () {
         small.drawTextRTL(this.ctx, "000", 178, 423, "#FFF");
         small.drawTextRTL(this.ctx, "000", 217, 423, "#FFF");
     };
-    CanvasUI.prototype.drawLabels = function () {
+    CanvasRenderer.prototype.drawLabels = function () {
         var small = this.loader.getFont("small");
         var pointer = this.loader.getImage("pointer");
         small.drawTextRTL(this.ctx, "BUFFER", 410, 35, this.palette.foreground);
         this.ctx.putImageData(pointer, 412, 27);
-        small.drawText(this.ctx, "OUT", 420, 25, this.palette.foreground);
+        small.drawText(this.ctx, "OUT", 421, 25, this.palette.foreground);
         this.ctx.putImageData(pointer, 446, 27);
-        small.drawText(this.ctx, "DANGER", 454, 25, this.palette.foreground);
+        small.drawText(this.ctx, "DANGER", 455, 25, this.palette.foreground);
         this.ctx.putImageData(pointer, 520, 27);
-        small.drawText(this.ctx, "GOOD", 528, 25, this.palette.foreground);
+        small.drawText(this.ctx, "GOOD", 529, 25, this.palette.foreground);
         this.ctx.putImageData(pointer, 595, 27);
-        small.drawText(this.ctx, "GREAT", 603, 25, this.palette.foreground);
+        small.drawText(this.ctx, "GREAT", 604, 25, this.palette.foreground);
         for (var y = 53; y <= 221; y += 168) {
             small.drawTextRTL(this.ctx, "MUTE/POLY", 54, y, this.palette.foreground);
             small.drawTextRTL(this.ctx, "VOLUME", 54, y + 13, this.palette.foreground);
@@ -554,10 +626,10 @@ var CanvasUI = (function () {
         small.drawText(this.ctx, "BPM", 138, 423, this.palette.foreground);
         small.drawText(this.ctx, "TB", 184, 423, this.palette.foreground);
     };
-    CanvasUI.prototype.polyToColor = function (poly) {
+    CanvasRenderer.prototype.polyToColor = function (poly) {
         return this.palette.foreground; // TODO
     };
-    CanvasUI.prototype.drawPan = function (x, y, val) {
+    CanvasRenderer.prototype.drawPan = function (x, y, val) {
         for (var i = -8; i <= 8; i++) {
             if (i === 0) {
                 continue;
@@ -578,7 +650,36 @@ var CanvasUI = (function () {
             this.ctx.strokeRect(x + (i * 2) + (i > 0 ? 13 : 16), y + 5 - height, 0, height);
         }
     };
-    CanvasUI.prototype.drawChannel = function (idx) {
+    CanvasRenderer.prototype.initChannelHitbox = function (idx) {
+        var _this = this;
+        var x = ((idx % 16) * 36) + 58;
+        var y = (Math.floor(idx / 16) * 168) + 49;
+        var region = new HitRegion(x, y, 33, 13);
+        region.onmousedown = function (x, y) {
+            _this.song.channels[idx].mute = !_this.song.channels[idx].mute;
+            _this.drawChannel(idx);
+        };
+        this.hitDetector.addHitRegion(region, "chan" + idx);
+    };
+    CanvasRenderer.prototype.initPositionHitbox = function () {
+        var _this = this;
+        var slider = new HitRegion(58, 402, 236, 16);
+        slider.cursor = "ew-resize";
+        var moveSlider = function (e) {
+            _this.song.position = Math.min(1, Math.max(0, (e.offsetX - 58) / 236));
+            _this.drawPositionSlider();
+        };
+        slider.onmousedown = function (x, y) {
+            _this.song.position = Math.min(1, Math.max(0, (x - 58) / 236));
+            _this.drawPositionSlider();
+            window.addEventListener("mousemove", moveSlider, false);
+            window.addEventListener("mouseup", function (e) {
+                window.removeEventListener("mousemove", moveSlider, false);
+            }, false);
+        };
+        this.hitDetector.addHitRegion(slider, "positionSlider");
+    };
+    CanvasRenderer.prototype.drawChannel = function (idx) {
         var x = ((idx % 16) * 36) + 58;
         var y = (Math.floor(idx / 16) * 168) + 49;
         var chan = this.song.channels[idx];
@@ -619,7 +720,7 @@ var CanvasUI = (function () {
         }
         else if (chan.wave !== null) {
             this.ctx.fillStyle = this.palette.light;
-            for (var i = 0; i < 32; i++) {
+            for (var i = 0; i < this.song.channels.length; i++) {
                 var val = Math.round(chan.wave(i / 32) * 7.5);
                 if (val >= 0) {
                     val++;
@@ -673,17 +774,17 @@ var CanvasUI = (function () {
         // labels for vu meters
         this.ctx.putImageData(this.loader.getImage("vulabels"), x + 3, y + 18);
     };
-    CanvasUI.prototype.redraw = function () {
+    CanvasRenderer.prototype.redraw = function () {
         this.drawLogos();
         this.drawBuffer();
         this.drawPositionSlider();
         this.drawSongInfo();
         this.drawLabels();
-        for (var idx = 0; idx < 32; idx++) {
+        for (var idx = 0; idx < this.song.channels.length; idx++) {
             this.drawChannel(idx);
         }
     };
-    return CanvasUI;
+    return CanvasRenderer;
 }());
 var FontTest = (function (_super) {
     __extends(FontTest, _super);
@@ -710,5 +811,5 @@ var FontTest = (function (_super) {
         }
     };
     return FontTest;
-}(CanvasUI));
-var ui = new CanvasUI();
+}(CanvasRenderer));
+var ui = new CanvasRenderer();

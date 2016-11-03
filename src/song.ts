@@ -6,15 +6,15 @@ class Song {
     fileName: string | null;
 
     
-    constructor() {
+    constructor(channelCount: number = 32) {
         //initialize with default channels
         this.channels = [];
-        for (var i = 0; i < 32; i++) {
+        for (var i = 0; i < channelCount; i++) {
             this.channels.push(new Channel());
         }
 
         this.position = 0;
-        this.buffer = 0;
+        this.buffer = 1;
 
         this.fileName = null;
     }

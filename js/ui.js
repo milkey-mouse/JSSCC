@@ -605,7 +605,6 @@ function processFile(file) {
 images.onLoaded = function() {
     ctx.fillStyle = palette.background;
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    // TODO: convert to polyfill, use ctx.addHitDetector or whatever
     ctx.canvas.addEventListener("mousedown", function(event) {
         var x = (event.pageX - ctx.canvas.offsetLeft) / scale;
         var y = (event.pageY - ctx.canvas.offsetTop) / scale;
