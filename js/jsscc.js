@@ -487,7 +487,11 @@ var CanvasRenderer = (function () {
             _this.initCanvas();
             _this.rescale();
             if (_this.loadEvents === 0) {
-                _this.redraw();
+                //defer actual redraw so loading text has time to show up
+                _this.clear();
+                _this.ctx.fillStyle = _this.palette.foreground;
+                _this.ctx.fillText("Loading...", _this.canvas.width / 2, _this.canvas.height / 2);
+                window.setTimeout(function () { _this.clear(); _this.redraw(); }, 50);
             }
             else {
                 _this.ctx.fillText("Loading assets...", _this.canvas.width / 2, _this.canvas.height / 2);
@@ -497,22 +501,38 @@ var CanvasRenderer = (function () {
             _this.loadEvents--;
             if (_this.loadEvents === 0) {
                 _this.clear();
-                _this.redraw();
+                _this.ctx.fillStyle = _this.palette.foreground;
+                _this.ctx.fillText("Loading...", _this.canvas.width / 2, _this.canvas.height / 2);
+                window.setTimeout(function () { _this.clear(); _this.redraw(); }, 50);
             }
         };
     }
-    CanvasRenderer.prototype.switchPalette = function (name, redraw) {
+    CanvasRenderer.prototype.switchPalette = function (name) {
+        var _this = this;
         if (name === void 0) { name = "default"; }
-        if (redraw === void 0) { redraw = true; }
         if (name !== this.paletteName) {
-            this.loader.switchPalette(this.paletteName, name);
-            this.palette = this.loader.palettes[name];
-            this.paletteName = name;
-            document.body.style.backgroundColor = this.palette.background;
-        }
-        if (redraw && this.initialized) {
+            if (this.initialized) {
+                var olddata = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            }
             this.clear();
-            this.redraw();
+            this.ctx.fillStyle = this.palette.foreground;
+            this.ctx.fillText("Loading...", this.canvas.width / 2, this.canvas.height / 2);
+            // have a frame render with the "Loading..." text before switching
+            window.setTimeout(function () {
+                if (olddata != null) {
+                    var newdata = new ImageData(olddata.width, olddata.height);
+                    AssetLoader.composite(newdata.data, olddata.data, olddata.data, _this.palette, _this.loader.palettes[name]);
+                    _this.ctx.putImageData(newdata, 0, 0);
+                }
+                _this.loader.switchPalette(_this.paletteName, name);
+                _this.palette = _this.loader.palettes[name];
+                _this.paletteName = name;
+                document.body.style.backgroundColor = _this.palette.background;
+                if (olddata == null && _this.initialized) {
+                    _this.clear();
+                    _this.redraw();
+                }
+            }, 50);
         }
     };
     CanvasRenderer.prototype.initCanvas = function () {

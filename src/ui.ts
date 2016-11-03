@@ -29,7 +29,11 @@ class CanvasRenderer {
             this.initCanvas();
             this.rescale();
             if (this.loadEvents === 0) {
-                this.redraw();
+                //defer actual redraw so loading text has time to show up
+                this.clear();
+                this.ctx.fillStyle = this.palette.foreground;
+                this.ctx.fillText("Loading...", this.canvas.width / 2, this.canvas.height / 2);
+                window.setTimeout(() => { this.clear(); this.redraw(); }, 50);
             } else {
                 this.ctx.fillText("Loading assets...", this.canvas.width / 2, this.canvas.height / 2);
             }
@@ -39,21 +43,37 @@ class CanvasRenderer {
             this.loadEvents--;
             if (this.loadEvents === 0) {
                 this.clear();
-                this.redraw();
+                this.ctx.fillStyle = this.palette.foreground;
+                this.ctx.fillText("Loading...", this.canvas.width / 2, this.canvas.height / 2);
+                window.setTimeout(() => { this.clear(); this.redraw(); }, 50);
             }
         };
     }
 
-    public switchPalette(name: string = "default", redraw: boolean = true): void {
+    public switchPalette(name: string = "default"): void {
         if (name !== this.paletteName) {
-            this.loader.switchPalette(this.paletteName, name);
-            this.palette = this.loader.palettes[name];
-            this.paletteName = name;
-            document.body.style.backgroundColor = this.palette.background;
-        }
-        if (redraw && this.initialized) {
+            if (this.initialized) {
+                var olddata = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            }
             this.clear();
-            this.redraw();
+            this.ctx.fillStyle = this.palette.foreground;
+            this.ctx.fillText("Loading...", this.canvas.width / 2, this.canvas.height / 2);
+             // have a frame render with the "Loading..." text before switching
+            window.setTimeout(() => {
+                if (olddata != null) {
+                    let newdata = new ImageData(olddata.width, olddata.height);
+                    AssetLoader.composite(newdata.data, olddata.data, olddata.data, this.palette, this.loader.palettes[name]);
+                    this.ctx.putImageData(newdata, 0, 0);
+                }
+                this.loader.switchPalette(this.paletteName, name);
+                this.palette = this.loader.palettes[name];
+                this.paletteName = name;
+                document.body.style.backgroundColor = this.palette.background;
+                if (olddata == null && this.initialized) {
+                    this.clear();
+                    this.redraw();
+                }
+            }, 50);
         }
     }
 
