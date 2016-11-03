@@ -3,6 +3,8 @@ class Song {
     position: number;
     buffer: number;
 
+    repeat: boolean;
+
     fileName: string | null;
 
 
@@ -15,6 +17,8 @@ class Song {
 
         this.position = 0;
         this.buffer = 1;
+
+        this.repeat = true;
 
         this.fileName = null;
     }

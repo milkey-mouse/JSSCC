@@ -140,7 +140,8 @@ class AssetLoader {
             let hexColor = AssetLoader.rgbToHex(imgdata[i], imgdata[i + 1], imgdata[i + 2]);
             let outColor: Color = { r: bgdata[i], g: bgdata[i + 1], b: bgdata[i + 2] };
             for (var color in inPalette) {
-                if (hexColor === (<any>inPalette)[color]) {
+                if (hexColor === (<any>inPalette)[color]) 
+                {
                     outColor = rgbPalette[color];
                     break;
                 }

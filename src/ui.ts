@@ -132,10 +132,10 @@ class CanvasRenderer {
         }
     }
 
-    public drawButton(x: number, y: number, w: number, h: number): void {
-        this.ctx.strokeStyle = this.palette.light;
+    public drawButton(x: number, y: number, w: number, h: number, pressed: boolean = false): void {
+        this.ctx.strokeStyle = pressed ? this.palette.background : this.palette.light;
         this.ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-        this.ctx.strokeStyle = this.palette.foreground;
+        this.ctx.strokeStyle = pressed ? this.palette.light : this.palette.foreground;
         this.ctx.strokeRect(x + 2, y + 2, w - 3, h - 3);
         this.ctx.fillStyle = this.palette.dark;
         this.ctx.fillRect(x + 1.5, y + 1.5, w - 3, h - 3);
