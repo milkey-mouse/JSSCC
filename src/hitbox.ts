@@ -48,8 +48,9 @@ class HitDetector {
         ctx.canvas.addEventListener("mousemove", (e: MouseEvent) => { this.onMouseMove(e); }, false);
         ctx.canvas.addEventListener("mouseup", (e: MouseEvent) => { this.onMouseUp(e); }, false);
     }
-    
+
     public onMouseDown(event: MouseEvent): void {
+        if (event.button !== 0) { return; }
         this.mouseDown = true;
         for (var regionName in this.regions) {
             let r = this.regions[regionName];
@@ -62,6 +63,7 @@ class HitDetector {
     }
 
     public onMouseUp(event: MouseEvent): void {
+        if (event.button !== 0) { return; }
         this.mouseDown = false;
         for (var regionName in this.regions) {
             let r = this.regions[regionName];
@@ -74,6 +76,7 @@ class HitDetector {
     }
 
     public onMouseMove(event: MouseEvent): void {
+        if (event.button !== 0) { return; }
         this.ctx.canvas.style.cursor = "auto";
         for (var regionName in this.regions) {
             let r = this.regions[regionName];

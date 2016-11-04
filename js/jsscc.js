@@ -110,6 +110,9 @@ var HitDetector = (function () {
         ctx.canvas.addEventListener("mouseup", function (e) { _this.onMouseUp(e); }, false);
     }
     HitDetector.prototype.onMouseDown = function (event) {
+        if (event.button !== 0) {
+            return;
+        }
         this.mouseDown = true;
         for (var regionName in this.regions) {
             var r = this.regions[regionName];
@@ -121,6 +124,9 @@ var HitDetector = (function () {
         }
     };
     HitDetector.prototype.onMouseUp = function (event) {
+        if (event.button !== 0) {
+            return;
+        }
         this.mouseDown = false;
         for (var regionName in this.regions) {
             var r = this.regions[regionName];
@@ -132,6 +138,9 @@ var HitDetector = (function () {
         }
     };
     HitDetector.prototype.onMouseMove = function (event) {
+        if (event.button !== 0) {
+            return;
+        }
         this.ctx.canvas.style.cursor = "auto";
         for (var regionName in this.regions) {
             var r = this.regions[regionName];
@@ -491,7 +500,7 @@ var CanvasRenderer = (function () {
                 _this.clear();
                 _this.ctx.fillStyle = _this.palette.foreground;
                 _this.ctx.fillText("Loading...", _this.canvas.width / 2, _this.canvas.height / 2);
-                window.setTimeout(function () { _this.clear(); _this.redraw(); }, 50);
+                window.setTimeout(function () { _this.clear(); _this.redraw(); }, 0);
             }
             else {
                 _this.ctx.fillText("Loading assets...", _this.canvas.width / 2, _this.canvas.height / 2);
@@ -503,7 +512,7 @@ var CanvasRenderer = (function () {
                 _this.clear();
                 _this.ctx.fillStyle = _this.palette.foreground;
                 _this.ctx.fillText("Loading...", _this.canvas.width / 2, _this.canvas.height / 2);
-                window.setTimeout(function () { _this.clear(); _this.redraw(); }, 50);
+                window.setTimeout(function () { _this.clear(); _this.redraw(); }, 0);
             }
         };
     }
@@ -532,7 +541,7 @@ var CanvasRenderer = (function () {
                     _this.clear();
                     _this.redraw();
                 }
-            }, 50);
+            }, 0);
         }
     };
     CanvasRenderer.prototype.initCanvas = function () {
@@ -563,6 +572,7 @@ var CanvasRenderer = (function () {
         }
         this.initPositionHitbox();
         this.initButtons();
+        this.initLink();
     };
     CanvasRenderer.prototype.rescale = function () {
         if (!this.initialized) {
@@ -631,7 +641,6 @@ var CanvasRenderer = (function () {
         medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 453, 4, this.palette.dark); //drop shadow
         medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 452, 3, this.palette.white);
         medium.drawText(this.ctx, "Inspired by Gashisoft GXSCC", 500, 14, this.palette.dark);
-        medium.drawText(this.ctx, "This project is open source: https://github.com/milkey-mouse/JSSCC", 44, 435, this.palette.dark);
     };
     CanvasRenderer.prototype.drawBuffer = function () {
         this.ctx.fillStyle = this.palette.background;
@@ -708,6 +717,13 @@ var CanvasRenderer = (function () {
         small.drawTextRTL(this.ctx, "TICK", 54, 423, this.palette.foreground);
         small.drawText(this.ctx, "BPM", 138, 423, this.palette.foreground);
         small.drawText(this.ctx, "TB", 184, 423, this.palette.foreground);
+        var medium = this.loader.getFont("medium");
+        medium.drawText(this.ctx, "Play", 140, 8, this.palette.foreground);
+        medium.drawText(this.ctx, "Fast", 180, 8, this.palette.foreground);
+        medium.drawText(this.ctx, "Stop", 219, 8, this.palette.foreground);
+        medium.drawText(this.ctx, "Pause", 256, 8, this.palette.foreground);
+        medium.drawText(this.ctx, "Export", 296, 8, this.palette.foreground);
+        medium.drawText(this.ctx, "Config", 336, 8, this.palette.foreground);
     };
     CanvasRenderer.prototype.polyToColor = function (poly) {
         return this.palette.foreground; // TODO
@@ -778,6 +794,24 @@ var CanvasRenderer = (function () {
             _this.drawRepeat();
         };
         this.hitDetector.addHitRegion(loop, "loop");
+        var createRegion = function (x, y, w, h, name) {
+            var r = new HitRegion(x, y, w, h);
+            r.onmousedown = function () {
+                _this.drawButtons(name);
+                var el = function (e) {
+                    _this.drawButtons(name);
+                    window.removeEventListener("mouseup", el, false);
+                };
+                window.addEventListener("mouseup", el, false);
+            };
+            _this.hitDetector.addHitRegion(r, name);
+        };
+        createRegion(132, 19, 34, 22, "play");
+        createRegion(172, 19, 34, 22, "fastforward");
+        createRegion(212, 19, 34, 22, "stop");
+        createRegion(252, 19, 34, 22, "pause");
+        createRegion(292, 19, 34, 22, "export");
+        createRegion(332, 19, 34, 22, "config");
     };
     CanvasRenderer.prototype.drawRepeat = function () {
         this.drawButton(300.5, 402.5, 20, 16, this.hitDetector.regions["loop"].over && this.hitDetector.mouseDown);
@@ -792,6 +826,64 @@ var CanvasRenderer = (function () {
         }
         else {
             this.ctx.putImageData(repeatIcon, 304, 405);
+        }
+    };
+    CanvasRenderer.prototype.drawButtons = function (name) {
+        if (name == null) {
+            this.drawButtons("play");
+            this.drawButtons("fastforward");
+            this.drawButtons("stop");
+            this.drawButtons("pause");
+            this.drawButtons("export");
+            this.drawButtons("config");
+        }
+        else {
+            switch (name) {
+                case "play":
+                    this.drawButton(132.5, 19.5, 34, 21, this.hitDetector.regions["play"].over && this.hitDetector.mouseDown);
+                    this.ctx.putImageData(this.loader.getImage("play"), 143, 23);
+                case "fastforward":
+                    this.drawButton(172.5, 19.5, 34, 21, this.hitDetector.regions["fastforward"].over && this.hitDetector.mouseDown);
+                    this.ctx.putImageData(this.loader.getImage("fastforward"), 180, 22);
+                case "stop":
+                    this.drawButton(212.5, 19.5, 34, 21, this.hitDetector.regions["stop"].over && this.hitDetector.mouseDown);
+                    this.ctx.putImageData(this.loader.getImage("stop"), 222, 23);
+                case "pause":
+                    this.drawButton(252.5, 19.5, 34, 21, this.hitDetector.regions["pause"].over && this.hitDetector.mouseDown);
+                    this.ctx.putImageData(this.loader.getImage("pause"), 264, 23);
+                case "export":
+                    this.drawButton(292.5, 19.5, 34, 21, this.hitDetector.regions["export"].over && this.hitDetector.mouseDown);
+                    this.ctx.putImageData(this.loader.getImage("export"), 295, 22);
+                case "config":
+                    this.drawButton(332.5, 19.5, 34, 21, this.hitDetector.regions["config"].over && this.hitDetector.mouseDown);
+                    this.ctx.putImageData(this.loader.getImage("config"), 342, 22);
+            }
+        }
+    };
+    CanvasRenderer.prototype.initLink = function () {
+        var _this = this;
+        var link = new HitRegion(164, 435, 183, 10);
+        link.onmousedown = function () {
+            window.location.assign("https://github.com/milkey-mouse/JSSCC");
+        };
+        link.onenter = function () { _this.drawLink(false); };
+        link.onexit = function () { _this.drawLink(); };
+        this.hitDetector.addHitRegion(link, "link");
+    };
+    CanvasRenderer.prototype.drawLink = function (redrawText) {
+        if (redrawText === void 0) { redrawText = true; }
+        if (redrawText) {
+            this.ctx.fillStyle = this.palette.background;
+            this.ctx.fillRect(44, 435, 310, 10);
+            this.loader.getFont("medium").drawText(this.ctx, "This project is open source: https://github.com/milkey-mouse/JSSCC", 44, 435, this.palette.dark);
+        }
+        if (this.hitDetector.regions["link"].over) {
+            this.ctx.strokeStyle = this.palette.dark;
+            this.ctx.lineWidth = 1;
+            this.ctx.beginPath();
+            this.ctx.moveTo(164.5, 443.5);
+            this.ctx.lineTo(347.5, 443.5);
+            this.ctx.stroke();
         }
     };
     CanvasRenderer.prototype.drawChannel = function (idx) {
@@ -896,6 +988,8 @@ var CanvasRenderer = (function () {
         this.drawSongInfo();
         this.drawLabels();
         this.drawRepeat();
+        this.drawButtons();
+        this.drawLink();
         for (var idx = 0; idx < this.song.channels.length; idx++) {
             this.drawChannel(idx);
         }

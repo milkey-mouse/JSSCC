@@ -33,7 +33,7 @@ class CanvasRenderer {
                 this.clear();
                 this.ctx.fillStyle = this.palette.foreground;
                 this.ctx.fillText("Loading...", this.canvas.width / 2, this.canvas.height / 2);
-                window.setTimeout(() => { this.clear(); this.redraw(); }, 50);
+                window.setTimeout(() => { this.clear(); this.redraw(); }, 0);
             } else {
                 this.ctx.fillText("Loading assets...", this.canvas.width / 2, this.canvas.height / 2);
             }
@@ -45,7 +45,7 @@ class CanvasRenderer {
                 this.clear();
                 this.ctx.fillStyle = this.palette.foreground;
                 this.ctx.fillText("Loading...", this.canvas.width / 2, this.canvas.height / 2);
-                window.setTimeout(() => { this.clear(); this.redraw(); }, 50);
+                window.setTimeout(() => { this.clear(); this.redraw(); }, 0);
             }
         };
     }
@@ -73,7 +73,7 @@ class CanvasRenderer {
                     this.clear();
                     this.redraw();
                 }
-            }, 50);
+            }, 0);
         }
     }
 
@@ -107,6 +107,7 @@ class CanvasRenderer {
         }
         this.initPositionHitbox();
         this.initButtons();
+        this.initLink();
     }
 
     public rescale(): void {
@@ -176,7 +177,6 @@ class CanvasRenderer {
         medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 453, 4, this.palette.dark); //drop shadow
         medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 452, 3, this.palette.white);
         medium.drawText(this.ctx, "Inspired by Gashisoft GXSCC", 500, 14, this.palette.dark);
-        medium.drawText(this.ctx, "This project is open source: https://github.com/milkey-mouse/JSSCC", 44, 435, this.palette.dark);
     }
 
     public drawBuffer(): void {
@@ -264,6 +264,13 @@ class CanvasRenderer {
         small.drawTextRTL(this.ctx, "TICK", 54, 423, this.palette.foreground);
         small.drawText(this.ctx, "BPM", 138, 423, this.palette.foreground);
         small.drawText(this.ctx, "TB", 184, 423, this.palette.foreground);
+        var medium = this.loader.getFont("medium");
+        medium.drawText(this.ctx, "Play", 140, 8, this.palette.foreground);
+        medium.drawText(this.ctx, "Fast", 180, 8, this.palette.foreground);
+        medium.drawText(this.ctx, "Stop", 219, 8, this.palette.foreground);
+        medium.drawText(this.ctx, "Pause", 256, 8, this.palette.foreground);
+        medium.drawText(this.ctx, "Export", 296, 8, this.palette.foreground);
+        medium.drawText(this.ctx, "Config", 336, 8, this.palette.foreground);     
     }
 
     public polyToColor(poly: number) {
@@ -333,6 +340,26 @@ class CanvasRenderer {
             this.drawRepeat();
         };
         this.hitDetector.addHitRegion(loop, "loop");
+
+        var createRegion = (x: number, y: number, w: number, h: number, name: string) => {
+            var r = new HitRegion(x, y, w, h);
+            r.onmousedown = () => {
+                this.drawButtons(name);
+                var el = (e: MouseEvent) => {
+                    this.drawButtons(name);
+                    window.removeEventListener("mouseup", el, false);
+                }
+                window.addEventListener("mouseup", el, false);
+            }
+            this.hitDetector.addHitRegion(r, name);
+        }
+
+        createRegion(132, 19, 34, 22, "play");
+        createRegion(172, 19, 34, 22, "fastforward");
+        createRegion(212, 19, 34, 22, "stop");
+        createRegion(252, 19, 34, 22, "pause");
+        createRegion(292, 19, 34, 22, "export");
+        createRegion(332, 19, 34, 22, "config");
     }
 
     public drawRepeat(): void {
@@ -351,6 +378,64 @@ class CanvasRenderer {
             this.ctx.putImageData(recolored, 304, 405);
         } else {
             this.ctx.putImageData(repeatIcon, 304, 405);
+        }
+    }
+
+    public drawButtons(name?: string): void {
+        if (name == null) {
+            this.drawButtons("play");
+            this.drawButtons("fastforward");
+            this.drawButtons("stop");
+            this.drawButtons("pause");
+            this.drawButtons("export");
+            this.drawButtons("config");          
+        } else {
+            switch (name) {
+                case "play":
+                    this.drawButton(132.5, 19.5, 34, 21, this.hitDetector.regions["play"].over && this.hitDetector.mouseDown);
+                    this.ctx.putImageData(this.loader.getImage("play"), 143, 23);
+                case "fastforward":
+                    this.drawButton(172.5, 19.5, 34, 21, this.hitDetector.regions["fastforward"].over && this.hitDetector.mouseDown);
+                    this.ctx.putImageData(this.loader.getImage("fastforward"), 180, 22);
+                case "stop":
+                    this.drawButton(212.5, 19.5, 34, 21, this.hitDetector.regions["stop"].over && this.hitDetector.mouseDown);
+                    this.ctx.putImageData(this.loader.getImage("stop"), 222, 23);
+                case "pause":
+                    this.drawButton(252.5, 19.5, 34, 21, this.hitDetector.regions["pause"].over && this.hitDetector.mouseDown);
+                    this.ctx.putImageData(this.loader.getImage("pause"), 264, 23);
+                case "export":
+                    this.drawButton(292.5, 19.5, 34, 21, this.hitDetector.regions["export"].over && this.hitDetector.mouseDown);
+                    this.ctx.putImageData(this.loader.getImage("export"), 295, 22);
+                case "config":
+                    this.drawButton(332.5, 19.5, 34, 21, this.hitDetector.regions["config"].over && this.hitDetector.mouseDown);
+                    this.ctx.putImageData(this.loader.getImage("config"), 342, 22);
+            }
+        }
+    }
+
+    public initLink(): void {
+        var link = new HitRegion(164, 435, 183, 10);
+        link.onmousedown = () => {
+            window.location.assign("https://github.com/milkey-mouse/JSSCC");
+        }
+        link.onenter = () => { this.drawLink(false); };
+        link.onexit = () => { this.drawLink(); };
+        this.hitDetector.addHitRegion(link, "link");
+    }
+
+    public drawLink(redrawText: boolean = true): void {
+        if (redrawText) {
+            this.ctx.fillStyle = this.palette.background;
+            this.ctx.fillRect(44, 435, 310, 10);
+            this.loader.getFont("medium").drawText(this.ctx, "This project is open source: https://github.com/milkey-mouse/JSSCC", 44, 435, this.palette.dark);
+        }
+        if (this.hitDetector.regions["link"].over) {
+            this.ctx.strokeStyle = this.palette.dark;
+            this.ctx.lineWidth = 1;
+            this.ctx.beginPath();
+            this.ctx.moveTo(164.5, 443.5);
+            this.ctx.lineTo(347.5, 443.5);
+            this.ctx.stroke();
         }
     }
 
@@ -474,6 +559,8 @@ class CanvasRenderer {
         this.drawSongInfo();
         this.drawLabels();
         this.drawRepeat();
+        this.drawButtons();
+        this.drawLink();
         for (var idx = 0; idx < this.song.channels.length; idx++) {
             this.drawChannel(idx);
         }

@@ -5,14 +5,35 @@
             "foreground": "#5c1f09",
             "dark": "#b2593f",
             "light": "#ffd2a2",
-            "white": "#ffffff"
+            "white": "#fff"
         },
         "gameboy": {
             "background": "#8bac0f",
             "foreground": "#0f380f",
             "dark": "#306230",
             "light": "#9bbc0f",
-            "white": "#ffffff"
+            "white": "#fff"
+        },
+        "c64": {
+            "background": "#08f",
+            "foreground": "#00a",
+            "dark": "#333",
+            "light": "#afe",
+            "white": "#fff"
+        },
+        "lychee": {
+            "background": "#ff8583",
+            "foreground": "#c02",
+            "dark": "#e01d28",
+            "light": "#ffa289",
+            "white": "#ffc6c6"
+        },
+        "hacker": {
+            "background": "#000",
+            "foreground": "#0f0",
+            "dark": "#090",
+            "light": "#060",
+            "white": "#3f0"
         }
     }, 
     "images": [
@@ -27,7 +48,13 @@
         "images/sparkles.png",
         "images/unmuted.png",
         "images/vulabels.png",
-        "images/xg.png"
+        "images/xg.png",
+        "icons/config.png",
+        "icons/export.png",
+        "icons/fastforward.png",
+        "icons/pause.png",
+        "icons/play.png",
+        "icons/stop.png"
     ],
     "fonts": [
         {
