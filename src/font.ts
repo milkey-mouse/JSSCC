@@ -6,7 +6,7 @@ class BitmapFont {
     public spaceWidth: number;
     public height: number;
 
-    private static fontPalette: Palette = <Palette>{ foreground: "#000" };
+    private static fontPalette: Palette = <Palette>{ foreground: "#000", background: "#fff" };
 
     public constructor(imgCanvas: CanvasRenderingContext2D, charMap: string, rowEscapes?: number[]) {
         this.height = imgCanvas.canvas.height;

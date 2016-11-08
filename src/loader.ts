@@ -16,14 +16,15 @@ class ManifestXHRResponse {
 }
 
 class AssetLoader {
-    palettes: { [path: string]: Palette; };
-    images: { [path: string]: ImageData; };
-    fonts: { [path: string]: BitmapFont; };
+    public palettes: { [path: string]: Palette; };
+    public images: { [path: string]: ImageData; };
+    public fonts: { [path: string]: BitmapFont; };
 
-    tempCanvas: CanvasRenderingContext2D | null;
-    unloadedAssets: number;
-    onload: () => void;
-    prefix: string;
+    private tempCanvas: CanvasRenderingContext2D | null;
+    private unloadedAssets: number;
+    private prefix: string;
+    
+    public onload: () => void;
 
     constructor(manifest: string = "assets/manifest.json") {
         this.onload = () => { };
@@ -122,7 +123,7 @@ class AssetLoader {
         xhr.send(null);
     }
 
-    public static composite(outdata: Uint8ClampedArray, imgdata: Uint8ClampedArray, bgdata: Uint8ClampedArray, inPalette: Palette, outPalette: Palette): void {
+    public static composite(outdata: Uint8ClampedArray, imgdata: Uint8ClampedArray, bgdata: Uint8ClampedArray, inPalette: Palette = <Palette>{}, outPalette: Palette = <Palette>{}): void {
         AssetLoader.canonicalizePalette(inPalette);
 
         var rgbPalette: { [name: string]: Color } = {};
@@ -137,19 +138,30 @@ class AssetLoader {
         }
 
         for (var i = 0; i < imgdata.length; i += 4) {
-            let hexColor = AssetLoader.rgbToHex(imgdata[i], imgdata[i + 1], imgdata[i + 2]);
-            let outColor: Color = { r: bgdata[i], g: bgdata[i + 1], b: bgdata[i + 2] };
-            for (var color in inPalette) {
-                if (hexColor === (<any>inPalette)[color]) 
-                {
-                    outColor = rgbPalette[color];
-                    break;
+            if (imgdata[i+3] === 0) {
+                outdata[i] = bgdata[i];
+                outdata[i + 1] = bgdata[i+1];
+                outdata[i + 2] = bgdata[i+2];
+                outdata[i + 3] = bgdata[i+3];
+            } else {
+                let outColor: Color = { r: imgdata[i], g: imgdata[i + 1], b: imgdata[i + 2] };
+                let hexColor = AssetLoader.colorToHex(outColor);
+                for (var color in inPalette) {
+                    if (hexColor === (<any>inPalette)[color]) 
+                    {
+                        if (rgbPalette[color] != null) {
+                            outColor = rgbPalette[color];
+                        } else {
+                            outColor = { r: bgdata[i], g: bgdata[i + 1], b: bgdata[i + 2] };
+                        }
+                        break;
+                    }
                 }
+                outdata[i] = outColor.r;
+                outdata[i + 1] = outColor.g;
+                outdata[i + 2] = outColor.b;
+                outdata[i + 3] = 255;
             }
-            outdata[i] = outColor.r;
-            outdata[i + 1] = outColor.g;
-            outdata[i + 2] = outColor.b;
-            outdata[i + 3] = 255;
         }
     }
 

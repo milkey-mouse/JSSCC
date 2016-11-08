@@ -54,7 +54,7 @@ class HitDetector {
         this.mouseDown = true;
         for (var regionName in this.regions) {
             let r = this.regions[regionName];
-            if (r.onmousedown !== null &&
+            if (r != null && r.onmousedown !== null &&
                 event.offsetY >= r.y && event.offsetY <= r.y + r.h &&
                 event.offsetX >= r.x && event.offsetX <= r.x + r.w) {
                 r.onmousedown(event.offsetX, event.offsetY);
@@ -67,7 +67,7 @@ class HitDetector {
         this.mouseDown = false;
         for (var regionName in this.regions) {
             let r = this.regions[regionName];
-            if (r.onmouseup !== null &&
+            if (r != null && r.onmouseup !== null &&
                 event.offsetY >= r.y && event.offsetY <= r.y + r.h &&
                 event.offsetX >= r.x && event.offsetX <= r.x + r.w) {
                 r.onmouseup(event.offsetX, event.offsetY);
@@ -80,6 +80,7 @@ class HitDetector {
         this.ctx.canvas.style.cursor = "auto";
         for (var regionName in this.regions) {
             let r = this.regions[regionName];
+            if (r == null) { break; }
             let over = event.offsetY >= r.y && event.offsetY <= r.y + r.h &&
                 event.offsetX >= r.x && event.offsetX <= r.x + r.w;
             if (over && r.cursor !== null) {
