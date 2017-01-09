@@ -18,7 +18,7 @@ class Song {
         this.position = 0;
         this.buffer = 1;
 
-        this.repeat = true;
+        this.repeat = Cookies.get("loop", "true") === "true";
 
         this.fileName = null;
     }

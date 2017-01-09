@@ -8,6 +8,7 @@
         "strictNullChecks": true,
         "out": "js/jsscc.js",
         "sourceMap": false,
-        "rootDir": "src"
+        "rootDir": "src",
+        "listFiles": true
     }
 }

@@ -19,8 +19,8 @@ class CanvasRenderer {
 
     configOpen: boolean;
 
-    constructor(manifest: string = "assets/manifest.json") {
-        this.loader = new AssetLoader(manifest);
+    constructor() {
+        this.loader = new AssetLoader("assets/manifest.json");
         this.initialized = false;
         this.loadEvents = 2;
         this.scale = 1;
@@ -52,6 +52,7 @@ class CanvasRenderer {
 
         this.loader.onload = () => {
             this.loadEvents--;
+            this.switchPalette(Cookies.get("palette", "default"));
             if (this.loadEvents === 0) {
                 this.clear();
                 this.ctx.fillStyle = this.palette.foreground;
@@ -61,12 +62,13 @@ class CanvasRenderer {
         };
     }
 
-    public switchPalette(name: string = "default", callback?: ()=>void): void {
+    public switchPalette(name: string = "default", callback?: () => void): void {
         if (name !== this.paletteName) {
+            Cookies.write("palette", name);
             if (this.configOpen) {
                 this.closeConfig();
                 this.switchPalette(name, () => { this.openConfig(); });
-            } else {
+            } else if (this.initialized) {
                 var olddata = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
                 this.clear();
                 this.ctx.fillStyle = this.palette.foreground;
@@ -90,6 +92,11 @@ class CanvasRenderer {
                         callback();
                     }
                 }, 0);
+            } else {
+                this.loader.switchPalette(this.paletteName, name);
+                this.palette = this.loader.palettes[name];
+                this.paletteName = name;
+                document.body.style.backgroundColor = this.palette.background;
             }
         }
     }
@@ -172,16 +179,16 @@ class CanvasRenderer {
 
     public drawButton(x: number, y: number, w: number, h: number, pressed: boolean = false): void {
         this.ctx.strokeStyle = pressed ? this.palette.background : this.palette.light;
-        this.ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+        this.ctx.strokeRect(x + 1.5, y + 1.5, w - 2, h - 2);
         this.ctx.strokeStyle = pressed ? this.palette.light : this.palette.foreground;
-        this.ctx.strokeRect(x + 2, y + 2, w - 3, h - 3);
+        this.ctx.strokeRect(x + 2.5, y + 2.5, w - 3, h - 3);
         this.ctx.fillStyle = this.palette.dark;
-        this.ctx.fillRect(x + 1.5, y + 1.5, w - 3, h - 3);
+        this.ctx.fillRect(x + 2, y + 2, w - 3, h - 3);
         this.ctx.strokeStyle = this.palette.foreground;
-        this.ctx.strokeRect(x, y, w, h);
+        this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     }
 
-    public drawWindow(x: number, y: number, w: number, h: number, name: string = "") {
+    public drawWindow(x: number, y: number, w: number, h: number, title?: string) {
         // composite curved corners with background
         var upperLeft = this.loader.getImage("upperLeft");
         var upperRight = this.loader.getImage("upperRight");
@@ -245,6 +252,11 @@ class CanvasRenderer {
         this.ctx.putImageData(compositedUpperRight, x + w - upperRight.width, y);
         this.ctx.putImageData(compositedLowerLeft, x, y + h - lowerLeft.height);
         this.ctx.putImageData(compositedLowerRight, x + w - lowerRight.width, y + h - lowerRight.height);
+
+        //draw title
+        if (title !== undefined) {
+            this.loader.getFont("large").drawText(this.ctx, title, x + 8, y + 7, this.palette.white);
+        }
     }
 
     public drawLogos(): void {
@@ -393,6 +405,10 @@ class CanvasRenderer {
     public initPositionHitbox(): void {
         var slider = new HitRegion(58, 402, 236, 16);
         slider.cursor = "ew-resize";
+        var slideEvent = (e: MouseEvent) => {
+            window.removeEventListener("mousemove", moveSlider, false);
+            window.removeEventListener("mouseup", slideEvent, false);
+        };
         var moveSlider = <EventListener>(e: MouseEvent) => {
             this.song.position = Math.min(1, Math.max(0, (e.offsetX - 57) / 236));
             this.drawPositionSlider();
@@ -401,9 +417,8 @@ class CanvasRenderer {
             this.song.position = Math.min(1, Math.max(0, (x - 57) / 236));
             this.drawPositionSlider();
             window.addEventListener("mousemove", moveSlider, false);
-            window.addEventListener("mouseup", (e: MouseEvent) => {
-                window.removeEventListener("mousemove", moveSlider, false);
-            }, false);
+
+            window.addEventListener("mouseup", slideEvent, false);
         };
         this.hitDetector.addHitRegion(slider, "positionSlider");
     }
@@ -420,22 +435,23 @@ class CanvasRenderer {
         };
         loop.onmouseup = (x: number, y: number) => {
             this.song.repeat = !this.song.repeat;
+            Cookies.write("loop", this.song.repeat ? "true" : "false");
             this.drawRepeat();
         };
         this.hitDetector.addHitRegion(loop, "loop");
 
         var createRegion = (x: number, y: number, w: number, h: number, name: string, callback?: () => boolean) => {
             var r = new HitRegion(x, y, w, h);
+            var el = (e: MouseEvent) => {
+                this.drawButtons(name);
+                window.removeEventListener("mouseup", el, false);
+            };
             r.onmousedown = () => {
                 this.drawButtons(name);
                 if (callback == null || !callback()) {
-                    var el = (e: MouseEvent) => {
-                        this.drawButtons(name);
-                        window.removeEventListener("mouseup", el, false);
-                    }
                     window.addEventListener("mouseup", el, false);
                 }
-            }
+            };
             this.hitDetector.addHitRegion(r, name);
         }
 
@@ -448,9 +464,11 @@ class CanvasRenderer {
     }
 
     public drawRepeat(): void {
-        this.drawButton(300.5, 402.5, 20, 16, this.hitDetector.regions["loop"].over && this.hitDetector.mouseDown);
+        this.drawButton(300, 402, 20, 16, this.hitDetector.regions["loop"].over && this.hitDetector.mouseDown);
         var repeatIcon = this.loader.getImage("repeat");
-        if (!this.song.repeat) {
+        if (this.song.repeat) {
+            this.ctx.putImageData(repeatIcon, 304, 405);
+        } else {
             var recolored = new ImageData(repeatIcon.width, repeatIcon.height);
             AssetLoader.composite(
                 recolored.data,
@@ -461,8 +479,6 @@ class CanvasRenderer {
                     dark: this.palette.dark
                 });
             this.ctx.putImageData(recolored, 304, 405);
-        } else {
-            this.ctx.putImageData(repeatIcon, 304, 405);
         }
     }
 
@@ -477,22 +493,27 @@ class CanvasRenderer {
         } else if (this.hitDetector.regions[name] !== undefined) {
             switch (name) {
                 case "play":
-                    this.drawButton(132.5, 19.5, 34, 21, this.hitDetector.regions["play"].over && this.hitDetector.mouseDown);
+                    this.drawButton(132, 19, 34, 21, this.hitDetector.regions["play"].over && this.hitDetector.mouseDown);
                     this.ctx.putImageData(this.loader.getImage("play"), 143, 23);
+                    break;
                 case "fastforward":
-                    this.drawButton(172.5, 19.5, 34, 21, this.hitDetector.regions["fastforward"].over && this.hitDetector.mouseDown);
-                    this.ctx.putImageData(this.loader.getImage("fastforward"), 180, 22);
+                    this.drawButton(172, 19, 34, 21, this.hitDetector.regions["fastforward"].over && this.hitDetector.mouseDown);
+                    this.ctx.putImageData(this.loader.getImage("fastForward"), 180, 22);
+                    break;
                 case "stop":
-                    this.drawButton(212.5, 19.5, 34, 21, this.hitDetector.regions["stop"].over && this.hitDetector.mouseDown);
+                    this.drawButton(212, 19, 34, 21, this.hitDetector.regions["stop"].over && this.hitDetector.mouseDown);
                     this.ctx.putImageData(this.loader.getImage("stop"), 222, 23);
+                    break;
                 case "pause":
-                    this.drawButton(252.5, 19.5, 34, 21, this.hitDetector.regions["pause"].over && this.hitDetector.mouseDown);
+                    this.drawButton(252, 19, 34, 21, this.hitDetector.regions["pause"].over && this.hitDetector.mouseDown);
                     this.ctx.putImageData(this.loader.getImage("pause"), 264, 23);
+                    break;
                 case "export":
-                    this.drawButton(292.5, 19.5, 34, 21, this.hitDetector.regions["export"].over && this.hitDetector.mouseDown);
+                    this.drawButton(292, 19, 34, 21, this.hitDetector.regions["export"].over && this.hitDetector.mouseDown);
                     this.ctx.putImageData(this.loader.getImage("export"), 295, 22);
+                    break;
                 case "config":
-                    this.drawButton(332.5, 19.5, 34, 21, this.hitDetector.regions["config"].over && this.hitDetector.mouseDown);
+                    this.drawButton(332, 19, 34, 21, this.hitDetector.regions["config"].over && this.hitDetector.mouseDown);
                     this.ctx.putImageData(this.loader.getImage("config"), 342, 22);
             }
         }
@@ -569,7 +590,7 @@ class CanvasRenderer {
         this.ctx.fillRect(x + 0.5, y + 127.5, 32, 1);
 
         if (idx % 16 === 9) {
-            this.drawButton(x, y + 119, 33, 17);
+            this.drawButton(x - 0.5, y + 118.5, 33, 17);
             this.ctx.putImageData(this.loader.getImage("drum"), x + 3, y + 124);
         } else if (chan.wave !== null) {
             this.ctx.fillStyle = this.palette.light;
@@ -634,7 +655,7 @@ class CanvasRenderer {
         this.ctx.putImageData(this.loader.getImage(chan.mute ? "muted" : "unmuted"), x + 3, y + 3);
 
         // labels for vu meters
-        this.ctx.putImageData(this.loader.getImage("vulabels"), x + 3, y + 18);
+        this.ctx.putImageData(this.loader.getImage("vuLabels"), x + 3, y + 18);
     }
 
     public redraw(): void {
@@ -664,19 +685,58 @@ class CanvasRenderer {
         newBG.b = Math.round(newBG.b * 0.25);
         document.body.style.backgroundColor = AssetLoader.colorToHex(newBG);
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        this.initConfig();
-        this.drawConfig();
+
+        var windowWidth = 200;
+        var windowHeight = 250;
+        this.initConfig(windowWidth, windowHeight);
+        this.drawConfig(windowWidth, windowHeight);
         return true;
     }
 
-    public initConfig() {
-        // make config hitboxes
+    public initConfig(width: number, height: number): void {
+        var close = new HitRegion((this.canvas.width + width) / 2 - 23, (this.canvas.height - height) / 2 + 5, 16, 15);
+        close.onmousedown = () => { this.closeConfig(); };
+        this.hitDetector.addHitRegion(close, "close");
+
+        var windowX = (this.canvas.width - width) / 2;
+        var windowY = (this.canvas.height - height) / 2;
+
+        var paletteTextBox = new HitRegion(windowX + width * 0.4 - 1, windowY + 33, width * 0.6 - 29, 16);
+        paletteTextBox.onmousedown = () => {
+            this.drawButton(windowX + width - 28, windowY + 33, 16, 16, true);
+            this.ctx.putImageData(this.loader.getImage("dropdown"), 396, 138);
+            window.setTimeout(() => {
+                this.drawButton(windowX + width - 28, windowY + 33, 16, 16, false);
+                this.ctx.putImageData(this.loader.getImage("dropdown"), 395, 137);
+            }, 100);
+        };
+        this.hitDetector.addHitRegion(paletteTextBox, "paletteTB");
+
+        var paletteButton = new HitRegion(windowX + width - 29, windowY + 33, 16, 16);
+        var mouseUp = () => {
+            this.drawButton(windowX + width - 28, windowY + 33, 16, 16, false);
+            this.ctx.putImageData(this.loader.getImage("dropdown"), 395, 137);
+            window.removeEventListener("mouseup", mouseUp);
+        };
+        paletteButton.onmousedown = () => {
+            this.drawButton(windowX + width - 28, windowY + 33, 16, 16, true);
+            this.ctx.putImageData(this.loader.getImage("dropdown"), 396, 138);
+            window.addEventListener("mouseup", mouseUp, false);
+        };
+        this.hitDetector.addHitRegion(paletteButton, "paletteDD");
     }
 
-    public drawConfig() {
-        var windowWidth = 200;
-        var windowHeight = 250;
-        this.drawWindow((this.canvas.width - windowWidth) / 2, (this.canvas.height - windowHeight) / 2, windowWidth, windowHeight);
+    public drawConfig(width: number, height: number): void {
+        var windowX = (this.canvas.width - width) / 2;
+        var windowY = (this.canvas.height - height) / 2;
+        var large = this.loader.getFont("large");
+        this.drawWindow(windowX, windowY, width, height, "Preferences");
+
+        large.drawText(this.ctx, "Color Palette", windowX + 12, windowY + 35, this.palette.foreground);
+        this.drawButton(windowX + width * 0.4, windowY + 33, width * 0.6 - 28, 16, true);
+        this.drawButton(windowX + width - 28, windowY + 33, 16, 16, false);
+        this.ctx.putImageData(this.loader.getImage("dropdown"), 395, 137);
+        large.drawText(this.ctx, this.paletteName, windowX + width * 0.4 + 4, windowY + 35, this.palette.white);
     }
 
     public closeConfig(): void {
@@ -690,32 +750,7 @@ class CanvasRenderer {
             this.tempRegions = null;
         }
         document.body.style.backgroundColor = this.palette.background;
+        this.hitDetector.regions["config"].over = false;  // the next update won't run until after this is drawn, so we have to do it manually
         this.drawButtons("config");
     }
 }
-
-class FontTest extends CanvasRenderer {
-    constructor(manifest: string = "assets/manifest.json") {
-        super(manifest);
-    }
-
-    public redraw(): void {
-        this.testFont("small", 10, 10);
-        this.testFont("medium", 10, 20);
-        this.testFont("large", 10, 30);
-        this.testFont("small", 10, 45, this.palette.foreground);
-        this.testFont("medium", 10, 55, this.palette.foreground);
-        this.testFont("large", 10, 65, this.palette.foreground);
-    }
-
-    public testFont(name: string, x: number, y: number, background?: string, rtl: boolean = false): void {
-        var font = this.loader.getFont(name);
-        if (rtl) {
-            font.drawTextRTL(this.ctx, font.charMap, x, y, background);
-        } else {
-            font.drawText(this.ctx, font.charMap, x, y, background);
-        }
-    }
-}
-
-var ui = new CanvasRenderer();
