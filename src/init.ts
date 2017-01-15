@@ -1,3 +1,4 @@
+/// <reference path="drawobject.ts" />
 /// <reference path="canvas.ts" />
 /// <reference path="cookie.ts" />
 /// <reference path="hitbox.ts" />

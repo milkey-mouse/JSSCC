@@ -163,6 +163,35 @@ var CanvasRenderer = (function () {
         this.ctx.strokeStyle = this.palette.foreground;
         this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     };
+    CanvasRenderer.prototype.drawFilledRect = function (x, y, w, h, color) {
+        this.ctx.fillStyle = color;
+        this.ctx.fillRect(x, y, w, h);
+    };
+    CanvasRenderer.prototype.drawImage = function (image, x, y) {
+        this.ctx.putImageData(this.loader.getImage(image), x, y);
+    };
+    CanvasRenderer.prototype.drawLine = function (x1, y1, x2, y2, color) {
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x1 + 0.5, y1 + 0.5);
+        this.ctx.lineTo(x2 + 0.5, y2 + 0.5);
+        this.ctx.stroke();
+    };
+    CanvasRenderer.prototype.drawPbar = function (value, x, y, w, h) {
+        this.ctx.fillStyle = this.palette.light;
+        this.ctx.fillRect(x, y, Math.round(w * value), h);
+    };
+    CanvasRenderer.prototype.drawTextRTL = function (size, text, x, y, color) {
+        this.loader.getFont(size).drawTextRTL(this.ctx, text, x, y, color);
+    };
+    CanvasRenderer.prototype.drawStrokeRect = function (x, y, w, h, color) {
+        this.ctx.strokeStyle = color;
+        this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+    };
+    CanvasRenderer.prototype.drawText = function (size, text, x, y, color) {
+        this.loader.getFont(size).drawText(this.ctx, text, x, y, color);
+    };
     CanvasRenderer.prototype.drawWindow = function (x, y, w, h, title) {
         // composite curved corners with background
         var upperLeft = this.loader.getImage("upperLeft");
@@ -224,20 +253,6 @@ var CanvasRenderer = (function () {
         if (title !== undefined) {
             this.loader.getFont("large").drawText(this.ctx, title, x + 8, y + 7, this.palette.white);
         }
-    };
-    CanvasRenderer.prototype.drawLogos = function () {
-        this.ctx.putImageData(this.loader.getImage("logo"), 15, 10);
-        this.ctx.putImageData(this.loader.getImage("sparkles"), 424, 4);
-        this.drawTexture(358, 410, 64, 32);
-        this.ctx.putImageData(this.loader.getImage("midi"), 436, 412);
-        this.ctx.putImageData(this.loader.getImage("gs"), 482, 413);
-        this.ctx.putImageData(this.loader.getImage("xg"), 525, 413);
-        this.ctx.putImageData(this.loader.getImage("scc"), 575, 413);
-        var medium = this.loader.getFont("medium");
-        medium.drawText(this.ctx, "Alpha v. 0.0.1", 39, 39, this.palette.white);
-        medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 453, 4, this.palette.dark); //drop shadow
-        medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 452, 3, this.palette.white);
-        medium.drawText(this.ctx, "Inspired by Gashisoft GXSCC", 500, 14, this.palette.dark);
     };
     CanvasRenderer.prototype.drawBuffer = function () {
         this.ctx.fillStyle = this.palette.background;
@@ -397,11 +412,11 @@ var CanvasRenderer = (function () {
         var createRegion = function (x, y, w, h, name, callback) {
             var r = new HitRegion(x, y, w, h);
             var el = function (e) {
-                _this.drawButtons(name);
+                _this.drawDGroup(name + "Button");
                 window.removeEventListener("mouseup", el, false);
             };
             r.onmousedown = function () {
-                _this.drawButtons(name);
+                _this.drawDGroup(name + "Button");
                 if (callback == null || !callback()) {
                     window.addEventListener("mouseup", el, false);
                 }
@@ -588,15 +603,69 @@ var CanvasRenderer = (function () {
         // labels for vu meters
         this.ctx.putImageData(this.loader.getImage("vuLabels"), x + 3, y + 18);
     };
+    CanvasRenderer.prototype.drawDObject = function (drawObj) {
+        var args = drawObj.slice(1);
+        for (var i = 0; i < args.length; i++) {
+            var arg = args[i];
+            if (typeof arg === "string" && arg.length > 0) {
+                switch (arg.charAt(0)) {
+                    case "$":
+                        args[i] = eval(arg.substr(1));
+                        break;
+                    case "#":
+                        var color = arg.substr(1);
+                        if (this.palette.hasOwnProperty(color)) {
+                            args[i] = this.palette[color];
+                        }
+                        break;
+                }
+            }
+        }
+        switch (drawObj[0]) {
+            case "button":
+                this.drawButton.apply(this, args);
+                break;
+            case "filledRect":
+                this.drawFilledRect.apply(this, args);
+                break;
+            case "image":
+                this.drawImage.apply(this, args);
+                break;
+            case "line":
+                this.drawLine.apply(this, args);
+                break;
+            case "pbar":
+                this.drawPbar.apply(this, args);
+                break;
+            case "textRTL":
+                this.drawTextRTL.apply(this, args);
+                break;
+            case "strokeRect":
+                this.drawStrokeRect.apply(this, args);
+                break;
+            case "text":
+                this.drawText.apply(this, args);
+                break;
+            case "texture":
+                this.drawTexture.apply(this, args);
+                break;
+            default:
+                console.warn("unrecognized UI item: " + drawObj);
+                break;
+        }
+    };
+    CanvasRenderer.prototype.drawDGroup = function (group) {
+        if (typeof group === "string") {
+            group = this.loader.drawGroups[group];
+        }
+        for (var i = 0; i < group.length; i++) {
+            this.drawDObject(group[i]);
+        }
+    };
     CanvasRenderer.prototype.redraw = function () {
-        this.drawLogos();
-        this.drawBuffer();
-        this.drawPositionSlider();
-        this.drawSongInfo();
-        this.drawLabels();
-        this.drawRepeat();
-        this.drawButtons();
-        this.drawLink();
+        for (var group in this.loader.drawGroups) {
+            this.drawDGroup(this.loader.drawGroups[group]);
+        }
         for (var idx = 0; idx < this.song.channels.length; idx++) {
             this.drawChannel(idx);
         }
@@ -675,7 +744,7 @@ var CanvasRenderer = (function () {
         }
         document.body.style.backgroundColor = this.palette.background;
         this.hitDetector.regions["config"].over = false; // the next update won't run until after this is drawn, so we have to do it manually
-        this.drawButtons("config");
+        this.drawDGroup("configButton");
     };
     return CanvasRenderer;
 }());
@@ -911,6 +980,7 @@ var AssetLoader = (function () {
         if (manifest === void 0) { manifest = "assets/manifest.json"; }
         this.onload = function () { };
         this.unloadedAssets = 0;
+        this.drawGroups = {};
         this.images = {};
         this.fonts = {};
         //cache default palette for loading screen
@@ -979,6 +1049,11 @@ var AssetLoader = (function () {
                     }
                     if (resp.fonts !== undefined) {
                         _this.unloadedAssets += resp.fonts.length;
+                    }
+                    if (resp.drawGroups !== undefined) {
+                        for (var p in resp.drawGroups) {
+                            _this.drawGroups[p] = resp.drawGroups[p];
+                        }
                     }
                     if (resp.palettes !== undefined) {
                         for (var p in resp.palettes) {
@@ -1207,6 +1282,7 @@ var Waveform = (function () {
     };
     return Waveform;
 }());
+/// <reference path="drawobject.ts" />
 /// <reference path="canvas.ts" />
 /// <reference path="cookie.ts" />
 /// <reference path="hitbox.ts" />

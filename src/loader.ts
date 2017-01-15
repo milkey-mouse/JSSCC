@@ -13,9 +13,11 @@ class ManifestXHRResponse {
     palettes?: Palette[];
     images?: string[];
     fonts?: XHRFont[];
+    drawGroups?: DrawObject[][];
 }
 
 class AssetLoader {
+    public drawGroups: { [path: string]: DrawObject[] };
     public palettes: { [path: string]: Palette; };
     public images: { [path: string]: ImageData; };
     public fonts: { [path: string]: BitmapFont; };
@@ -29,6 +31,7 @@ class AssetLoader {
     constructor(manifest: string = "assets/manifest.json") {
         this.onload = () => { };
         this.unloadedAssets = 0;
+        this.drawGroups = {};
         this.images = {};
         this.fonts = {};
 
@@ -101,6 +104,12 @@ class AssetLoader {
                     if (resp.images !== undefined) { this.unloadedAssets += resp.images.length; }
                     if (resp.fonts !== undefined) { this.unloadedAssets += resp.fonts.length; }
 
+                    if (resp.drawGroups !== undefined) {
+                        for (var p in resp.drawGroups) {
+                            this.drawGroups[p] = resp.drawGroups[p];
+                        }
+                    }
+
                     if (resp.palettes !== undefined) {
                         for (var p in resp.palettes) {
                             this.palettes[p] = resp.palettes[p];
@@ -111,6 +120,7 @@ class AssetLoader {
                     if (resp.images !== undefined) {
                         resp.images.forEach((img) => { this.loadImage(img, true); }, this);
                     }
+
                     if (resp.fonts !== undefined) {
                         resp.fonts.forEach(this.loadFont, this);
                     }
@@ -171,13 +181,6 @@ class AssetLoader {
                 let idata = this.getImage(img).data;
                 AssetLoader.composite(idata, idata, idata, this.palettes[oldName], this.palettes[newName]);
             }
-            //for (var fontName in this.fonts) {
-            //    var font = this.fonts[fontName];
-            //    for (var i = 0; i < font.chars.length; i++) {
-            //        let fdata = font.chars[i].data;
-            //        AssetLoader.replaceColors(fdata, fdata, fdata, this.palettes[oldName], this.palettes[newName]);
-            //    }
-            //}
         }
     }
 

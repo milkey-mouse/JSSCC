@@ -188,6 +188,42 @@ class CanvasRenderer {
         this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     }
 
+    public drawFilledRect(x: number, y: number, w: number, h: number, color: string) {
+        this.ctx.fillStyle = color;
+        this.ctx.fillRect(x, y, w, h);
+    }
+
+    public drawImage(image: string, x: number, y: number) {
+        this.ctx.putImageData(this.loader.getImage(image), x, y);
+    }
+
+    public drawLine(x1: number, y1: number, x2: number, y2: number, color: string) {
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x1 + 0.5, y1 + 0.5);
+        this.ctx.lineTo(x2 + 0.5, y2 + 0.5);
+        this.ctx.stroke();
+    }
+
+    public drawPbar(value: number, x: number, y: number, w: number, h: number) {
+        this.ctx.fillStyle = this.palette.light;
+        this.ctx.fillRect(x, y, Math.round(w * value), h);
+    }
+
+    public drawTextRTL(size: "small"|"medium"|"large", text: string, x: number, y: number, color: string) {
+        this.loader.getFont(size).drawTextRTL(this.ctx, text, x, y, color);
+    }
+
+    public drawStrokeRect(x: number, y: number, w: number, h: number, color: string) {
+        this.ctx.strokeStyle = color;
+        this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+    }
+
+    public drawText(size: "small"|"medium"|"large", text: string, x: number, y: number, color: string) {
+        this.loader.getFont(size).drawText(this.ctx, text, x, y, color);
+    }
+
     public drawWindow(x: number, y: number, w: number, h: number, title?: string) {
         // composite curved corners with background
         var upperLeft = this.loader.getImage("upperLeft");
@@ -257,21 +293,6 @@ class CanvasRenderer {
         if (title !== undefined) {
             this.loader.getFont("large").drawText(this.ctx, title, x + 8, y + 7, this.palette.white);
         }
-    }
-
-    public drawLogos(): void {
-        this.ctx.putImageData(this.loader.getImage("logo"), 15, 10);
-        this.ctx.putImageData(this.loader.getImage("sparkles"), 424, 4);
-        this.drawTexture(358, 410, 64, 32);
-        this.ctx.putImageData(this.loader.getImage("midi"), 436, 412);
-        this.ctx.putImageData(this.loader.getImage("gs"), 482, 413);
-        this.ctx.putImageData(this.loader.getImage("xg"), 525, 413);
-        this.ctx.putImageData(this.loader.getImage("scc"), 575, 413);
-        var medium = this.loader.getFont("medium");
-        medium.drawText(this.ctx, "Alpha v. 0.0.1", 39, 39, this.palette.white);
-        medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 453, 4, this.palette.dark); //drop shadow
-        medium.drawText(this.ctx, "(C) 2016 meme.institute + Milkey Mouse", 452, 3, this.palette.white);
-        medium.drawText(this.ctx, "Inspired by Gashisoft GXSCC", 500, 14, this.palette.dark);
     }
 
     public drawBuffer(): void {
@@ -443,11 +464,11 @@ class CanvasRenderer {
         var createRegion = (x: number, y: number, w: number, h: number, name: string, callback?: () => boolean) => {
             var r = new HitRegion(x, y, w, h);
             var el = (e: MouseEvent) => {
-                this.drawButtons(name);
+                this.drawDGroup(name + "Button");
                 window.removeEventListener("mouseup", el, false);
             };
             r.onmousedown = () => {
-                this.drawButtons(name);
+                this.drawDGroup(name + "Button");
                 if (callback == null || !callback()) {
                     window.addEventListener("mouseup", el, false);
                 }
@@ -658,15 +679,71 @@ class CanvasRenderer {
         this.ctx.putImageData(this.loader.getImage("vuLabels"), x + 3, y + 18);
     }
 
+    public drawDObject(drawObj: DrawObject) {
+        var args : Array<string | number | boolean> = drawObj.slice(1);
+        for (var i = 0; i < args.length; i++) {
+            var arg = args[i];
+            if (typeof arg === "string"  && arg.length > 0) {
+                switch (arg.charAt(0)) {
+                    case "$":
+                        args[i] = eval(arg.substr(1));
+                        break;
+                    case "#":
+                        var color = arg.substr(1);
+                        if (this.palette.hasOwnProperty(color)) {
+                            args[i] = (<any>this.palette)[color];
+                        }
+                        break;
+                }
+            }
+        }
+        switch(drawObj[0]) {
+            case "button":
+                this.drawButton.apply(this, args);
+                break;
+            case "filledRect":
+                this.drawFilledRect.apply(this, args);
+                break;
+            case "image":
+                this.drawImage.apply(this, args);
+                break;
+            case "line":
+                this.drawLine.apply(this, args);
+                break;
+            case "pbar":
+                this.drawPbar.apply(this, args);
+                break;
+            case "textRTL":
+                this.drawTextRTL.apply(this, args);
+                break;
+            case "strokeRect":
+                this.drawStrokeRect.apply(this, args);
+                break;
+            case "text":
+                this.drawText.apply(this, args);
+                break;
+            case "texture":
+                this.drawTexture.apply(this, args);
+                break;
+            default:
+                console.warn("unrecognized UI item: " + drawObj);
+                break;
+        }
+    }
+
+    public drawDGroup(group: DrawObject[]|string) {
+        if (typeof group === "string") {
+            group = this.loader.drawGroups[group];
+        }
+        for (var i = 0; i < group.length; i++) {
+            this.drawDObject(group[i]);
+        }
+    }
+
     public redraw(): void {
-        this.drawLogos();
-        this.drawBuffer();
-        this.drawPositionSlider();
-        this.drawSongInfo();
-        this.drawLabels();
-        this.drawRepeat();
-        this.drawButtons();
-        this.drawLink();
+        for (var group in this.loader.drawGroups) {
+            this.drawDGroup(this.loader.drawGroups[group]);
+        }
         for (var idx = 0; idx < this.song.channels.length; idx++) {
             this.drawChannel(idx);
         }
@@ -751,6 +828,6 @@ class CanvasRenderer {
         }
         document.body.style.backgroundColor = this.palette.background;
         this.hitDetector.regions["config"].over = false;  // the next update won't run until after this is drawn, so we have to do it manually
-        this.drawButtons("config");
+        this.drawDGroup("configButton");
     }
 }
