@@ -34,6 +34,7 @@ class HitDetector {
     private unnamedRegionsCount: number;
     private ctx: CanvasRenderingContext2D;
 
+    public scale: number;
     public mouseDown: boolean;
     public regions: { [name: string]: HitRegion };
 
@@ -42,6 +43,7 @@ class HitDetector {
         this.mouseDown = false;
         this.regions = {};
         this.ctx = ctx;
+        this.scale = 1;
 
         // use lambdas to have the right context for 'this'
         ctx.canvas.addEventListener("mousedown", (e: MouseEvent) => { this.onMouseDown(e); }, false);
@@ -51,38 +53,44 @@ class HitDetector {
 
     public onMouseDown(event: MouseEvent): void {
         if (event.button !== 0) { return; }
+        var mouseX: number = event.offsetX / this.scale;
+        var mouseY: number = event.offsetY / this.scale;
         this.mouseDown = true;
         for (var regionName in this.regions) {
             let r = this.regions[regionName];
             if (r != null && r.onmousedown !== null &&
-                event.offsetY >= r.y && event.offsetY <= r.y + r.h &&
-                event.offsetX >= r.x && event.offsetX <= r.x + r.w) {
-                r.onmousedown(event.offsetX, event.offsetY);
+                mouseY >= r.y && mouseY <= r.y + r.h &&
+                mouseX >= r.x && mouseX <= r.x + r.w) {
+                r.onmousedown(mouseX, mouseY);
             }
         }
     }
 
     public onMouseUp(event: MouseEvent): void {
         if (event.button !== 0) { return; }
+        var mouseX: number = event.offsetX / this.scale;
+        var mouseY: number = event.offsetY / this.scale;
         this.mouseDown = false;
         for (var regionName in this.regions) {
             let r = this.regions[regionName];
             if (r != null && r.onmouseup !== null &&
-                event.offsetY >= r.y && event.offsetY <= r.y + r.h &&
-                event.offsetX >= r.x && event.offsetX <= r.x + r.w) {
-                r.onmouseup(event.offsetX, event.offsetY);
+                mouseY >= r.y && mouseY <= r.y + r.h &&
+                mouseX >= r.x && mouseX <= r.x + r.w) {
+                r.onmouseup(mouseX, mouseY);
             }
         }
     }
 
     public onMouseMove(event: MouseEvent): void {
         if (event.button !== 0) { return; }
+        var mouseX: number = event.offsetX / this.scale;
+        var mouseY: number = event.offsetY / this.scale;
         this.ctx.canvas.style.cursor = "auto";
         for (var regionName in this.regions) {
             let r = this.regions[regionName];
             if (r == null) { break; }
-            let over = event.offsetY >= r.y && event.offsetY <= r.y + r.h &&
-                event.offsetX >= r.x && event.offsetX <= r.x + r.w;
+            let over = mouseY >= r.y && mouseY <= r.y + r.h &&
+                mouseX >= r.x && mouseX <= r.x + r.w;
             if (over && r.cursor !== null) {
                 this.ctx.canvas.style.cursor = r.cursor;
             }

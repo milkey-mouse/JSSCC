@@ -115,6 +115,8 @@ class CanvasRenderer {
             return;
         }
 
+        this.hitDetector = new HitDetector(newCtx);
+
         this.ctx = newCtx;
         this.ctx.textBaseline = "middle";
         this.ctx.textAlign = "center";
@@ -122,8 +124,6 @@ class CanvasRenderer {
         this.initialized = true;
         this.rescale();
         this.clear();
-
-        this.hitDetector = new HitDetector(this.ctx);
 
         // add hit regions for each channel
         for (var i = 0; i < this.song.channels.length; i++) {
@@ -136,12 +136,11 @@ class CanvasRenderer {
 
     public rescale(): void {
         if (!this.initialized) { return; }
-        var width: number = window.innerWidth / this.canvas.width;
-        var height: number = window.innerHeight / this.canvas.height;
-        this.scale = Math.max(1, Math.floor(Math.min(width, height)));
+        var widthScale: number = window.innerWidth / this.canvas.width;
+        var heightScale: number = window.innerHeight / this.canvas.height;
+        this.hitDetector.scale = this.scale = Math.max(1, Math.floor(Math.min(widthScale, heightScale)));
         this.ctx.canvas.style.height = (this.ctx.canvas.height * this.scale) + "px";
         this.ctx.canvas.style.width = (this.ctx.canvas.width * this.scale) + "px";
-        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
 
     public clear(): void {
