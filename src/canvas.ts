@@ -91,7 +91,7 @@ class CanvasRenderer {
                     if (callback != null) {
                         callback();
                     }
-                }, 0);
+                }, 10);
             } else {
                 this.loader.switchPalette(this.paletteName, name);
                 this.palette = this.loader.palettes[name];
