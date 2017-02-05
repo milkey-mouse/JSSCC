@@ -9,6 +9,6 @@
         "out": "js/jsscc.js",
         "sourceMap": false,
         "rootDir": "src",
-        "listFiles": true
+        "listFiles": false
     }
 }
