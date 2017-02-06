@@ -31,7 +31,7 @@ class BitmapFont {
         }
         this.chars[charIdx] = imgCanvas.getImageData(lastCut + 1, 0, imgCanvas.canvas.width - lastCut - 1, this.height);
         if (this.charMap.length !== this.chars.length) {
-            console.error("map is different length than char array; char map probably didn't load correctly")
+            console.error("map is different length than char array; char map probably didn't load correctly");
         }
     }
 

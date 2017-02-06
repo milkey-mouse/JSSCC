@@ -13,7 +13,10 @@ class Song {
         this.channels = [];
         for (var i = 0; i < channelCount; i++) {
             this.channels.push(new Channel());
+            this.channels[i].wave = Waveform.sine;
         }
+        this.channels[9].drum = true;
+        this.channels[25].drum = true;
 
         this.position = 0;
         this.buffer = 1;
@@ -39,6 +42,7 @@ class Channel {
     percussion: number;
     cc0: number;
     freq: number;
+    drum: boolean;
 
     wave: ((x: number) => number) | null;
 
@@ -57,6 +61,7 @@ class Channel {
         this.percussion = 0;
         this.cc0 = 0;
         this.freq = 0;
+        this.drum = false;
 
         this.wave = null;
     }

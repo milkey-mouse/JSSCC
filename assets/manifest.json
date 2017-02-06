@@ -40,9 +40,9 @@
             "white": "#3f0",
             "black": "#fff"
         }
-    }, 
+    },
     "images": [
-        "images/dropdown.png",       
+        "images/dropdown.png",
         "images/drum.png",
         "images/gs.png",
         "images/logo.png",
@@ -51,6 +51,7 @@
         "images/pointer.png",
         "images/scc.png",
         "images/sparkles.png",
+        "images/texture.png",
         "images/unmuted.png",
         "images/vuLabels.png",
         "images/xg.png",
@@ -78,11 +79,101 @@
         },
         {
             "path": "fonts/large.png",
-            "rowEscapes": [3,4],
-            "map": "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+            "rowEscapes": [
+                3,
+                4
+            ],
+            "map": "!\"&$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
         }
     ],
+    "note": "Use this.ui.rebakeBounds() in the JS console to regenerate the bounds entries below.",
     "drawGroups": {
+        "channelMutePoly": [
+            ["strokeRect", 0, 0, 33, 13, "&foreground"],
+            ["image", "$this.chan.mute ? 'muted' : 'unmuted'", 3, 3],
+            ["strokeRect", 16, 2, 15, 9, "&foreground"],
+            ["filledRect", 19, 5, 10, 4, "&foreground"],
+            ["strokeRect", 18, 4, 11, 5, "&dark"],
+            ["bounds", 0, 0, 34, 14]
+        ],
+        "channelVENLabels": [
+            ["strokeRect", 0, 15, 33, 58, "&foreground"],
+            ["strokeRect", 2, 24, 5, 47, "&foreground"],
+            ["strokeRect", 7, 24, 5, 47, "&foreground"],
+            ["strokeRect", 12, 24, 5, 47, "&foreground"],
+            ["strokeRect", 17, 24, 14, 47, "&foreground"],
+            ["image", "vuLabels", 3, 18],
+            ["bounds", 0, 15, 34, 59]
+        ],
+        "channelVEN": [
+            ["vuMeter", 4, 26, 1, 15, "$this.chan.volume"],
+            ["vuMeter", 9, 26, 1, 15, "$this.chan.expression"],
+            ["vuMeter", 14, 26, 1, 15, "$this.chan.envelope"],
+            ["vuMeter", 19, 26, 10, 15, "$this.chan.output"],
+            ["bounds", 4, 26, 26, 44]
+        ],
+        "channelPitchbend": [
+            ["strokeRect", 0, 75, 33, 9, "&foreground"],
+            ["pan", 2, 77, "$this.chan.pitchbend"],
+            ["bounds", 0, 75, 34, 10]
+        ],
+        "channelPanpot": [
+            ["strokeRect", 0, 86, 33, 9, "&foreground"],
+            ["pan", 2, 88, "$this.chan.panpot"],
+            ["bounds", 0, 86, 34, 10]
+        ],
+        "channelPercussion": [
+            ["strokeRect", 0, 97, 33, 9, "&foreground"],
+            ["textRTL", "small", "$'000'.substring(('' + this.chan.percussion).length) + this.chan.percussion", 32, 99, "&white"],
+            ["bounds", 0, 97, 34, 10]
+        ],
+        "channelCC0": [
+            ["strokeRect", 0, 108, 33, 9, "&foreground"],
+            ["textRTL", "small", "$'000'.substring(('' + this.chan.cc0).length) + this.chan.cc0", 32, 110, "&white"],
+            ["bounds", 0, 108, 34, 10]
+        ],
+        "channelButton": [
+            ["button", 0, 119, 33, 17],
+            ["image", "drum", 3, 124],
+            ["bounds", 0, 119, 34, 18]
+        ],
+        "channelWaveform": [
+            ["filledRect", 0, 119, 33, 17, "&background"],
+            ["strokeRect", 0, 119, 33, 17, "&foreground"],
+            ["filledRect", 1, 128, 32, 1, "&light"],
+            ["waveform", 0, 118, 32, "&light"],
+            ["bounds", 0, 119, 34, 18]
+        ],
+        "channelFrequency": [
+            ["strokeRect", 0, 138, 33, 9, "&foreground"],
+            ["textRTL", "small", "$'00000'.substring(('' + this.chan.freq).length) + this.chan.freq", 32, 140, "&white"],
+            ["bounds", 0, 138, 34, 10]
+        ],
+        "channelHoldSoft": [
+            ["strokeRect", 0, 149, 15, 9, "&foreground"],
+            ["filledRect", 2, 151, 11, 5, "&dark"],
+            ["strokeRect", 2, 151, 11, 5, "&foreground"],
+            ["strokeRect", 18, 149, 15, 9, "&foreground"],
+            ["filledRect", 20, 151, 11, 5, "&dark"],
+            ["strokeRect", 20, 151, 11, 5, "&foreground"],
+            ["bounds", 0, 149, 34, 10]
+        ],
+        "preferencesWindow": [
+            ["window", 0, 0, 200, 250, "Preferences"],
+            ["text", "large", "Color Palette", 12, 35, "&foreground"],
+            ["bounds", 0, 0, 200, 250]
+        ],
+        "preferencesDropDown": [
+            ["button", 80, 33, 92, 16, true],
+            ["button", 172, 33, 16, 16, "$this.configOpen && this.hitDetector.regions['paletteDD'].over && this.hitDetector.mouseDown"],
+            ["image", "dropdown", 178, 40],
+            ["text", "large", "$this.paletteName", 84, 35, "&white"],
+            ["bounds", 80, 33, 109, 17]
+        ],
+        "clear": [
+            ["filledRect", 0, 0, "$this.canvas.width", "$this.canvas.height", "&background"],
+            ["bounds", 0, 0, 634, 444]
+        ],
         "logos": [
             ["image", "logo", 15, 10],
             ["image", "sparkles", 424, 4],
@@ -90,113 +181,132 @@
             ["image", "gs", 482, 413],
             ["image", "xg", 525, 413],
             ["image", "scc", 575, 413],
-            ["texture", 358, 410, 64, 32],
-            ["text", "medium", "Alpha v. 0.0.1", 39, 39, "#white"],
-            ["text", "medium", "(C) 2016 meme.institute + Milkey Mouse", 453, 4, "#dark"],
-            ["text", "medium", "(C) 2016 meme.institute + Milkey Mouse", 452, 3, "#white"],
-            ["text", "medium", "Inspired by Gashisoft GXSCC", 500, 14, "#dark"]
+            ["image", "texture", 358, 410, 64, 32],
+            ["text", "medium", "Alpha v. 0.0.1", 39, 39, "&white"],
+            ["text", "medium", "(C) 2016 meme.institute + Milkey Mouse", 453, 4, "&dark"],
+            ["text", "medium", "(C) 2016 meme.institute + Milkey Mouse", 452, 3, "&white"],
+            ["text", "medium", "Inspired by Gashisoft GXSCC", 500, 14, "&dark"],
+            ["bounds", 15, 3, 610, 439]
         ],
         "buffer": [
-            ["filledRect", 412, 32, 219, 9, "#background"],
-            ["pbar", "$this.song.buffer", 413, 33, 218, 8, "#light"],
-            ["filledRect", 412, 32, 219, 9, "#background"],
-            ["strokeRect", 412, 32, 219, 9, "#foreground"]
+            ["filledRect", 412, 32, 219, 9, "&background"],
+            ["pbar", "$this.song.buffer", 413, 33, 218, 8, "&light"],
+            ["filledRect", 412, 32, 219, 9, "&background"],
+            ["strokeRect", 412, 32, 219, 9, "&foreground"],
+            ["bounds", 412, 32, 220, 10]
         ],
         "positionSlider": [
-            ["filledRect", 58, 402, 236, 16, "#background"],
-            ["pbar", "$this.song.position", 59, 402, 235, 16, "#dark"]
+            ["filledRect", 58, 402, 236, 16, "&background"],
+            ["pbar", "$this.song.position", 59, 402, 235, 16, "&dark"],
+            ["strokeRect", 58, 402, 236, 16, "&foreground"],
+            ["bounds", 58, 402, 237, 17]
         ],
         "songInfo": [
-            ["filledRect", 58, 383, 573, 14, "#dark"],
-            ["strokeRect", 58, 383, 573, 14, "#dark"],
-            ["filledRect", 58, 421, 74, 9, "#background"],
-            ["strokeRect", 58, 421, 74, 9, "#foreground"],
-            ["filledRect", 159, 421, 20, 9, "#background"],
-            ["strokeRect", 159, 421, 20, 9, "#foreground"],
-            ["filledRect", 198, 421, 20, 9, "#background"],
-            ["strokeRect", 198, 421, 20, 9, "#foreground"],
-            ["text", "large", "$this.song.fileName === null ? 'Drag and drop a MIDI file into this window to play' : this.song.fileName", 60, 385, "#light"],
-            ["text", "small", "00 : 00 : 00 '000", 131, 423, "#white", 1],
-            ["text", "small", "000", 178, 423, "#white"],
-            ["text", "small", "000", 217, 423, "#white"]
+            ["filledRect", 58, 383, 573, 14, "&dark"],
+            ["strokeRect", 58, 383, 573, 14, "&dark"],
+            ["filledRect", 58, 421, 74, 9, "&background"],
+            ["strokeRect", 58, 421, 74, 9, "&foreground"],
+            ["filledRect", 159, 421, 20, 9, "&background"],
+            ["strokeRect", 159, 421, 20, 9, "&foreground"],
+            ["filledRect", 198, 421, 20, 9, "&background"],
+            ["strokeRect", 198, 421, 20, 9, "&foreground"],
+            ["text", "large", "$this.song.fileName === null ? 'Drag and drop a MIDI file into this window to play' : this.song.fileName", 60, 385, "&light"],
+            ["textRTL", "small", "00 : 00 : 00 '000", 131, 423, "&white", 1],
+            ["textRTL", "small", "000", 178, 423, "&white"],
+            ["textRTL", "small", "000", 217, 423, "&white"],
+            ["bounds", 58, 383, 574, 48]
         ],
         "labels": [
-            ["textRTL", "small", "BUFFER", 410, 35, "#foreground"],
+            ["textRTL", "small", "BUFFER", 410, 35, "&foreground"],
             ["image", "pointer", 412, 27],
-            ["text", "small", "OUT", 421, 25, "#foreground"],
+            ["text", "small", "OUT", 421, 25, "&foreground"],
             ["image", "pointer", 446, 27],
-            ["text", "small", "DANGER", 455, 25, "#foreground"],
+            ["text", "small", "DANGER", 455, 25, "&foreground"],
             ["image", "pointer", 520, 27],
-            ["text", "small", "GOOD", 529, 25, "#foreground"],
+            ["text", "small", "GOOD", 529, 25, "&foreground"],
             ["image", "pointer", 595, 27],
-            ["text", "small", "GREAT", 604, 25, "#foreground"],
-            ["textRTL", "small", "MUTE/POLY", 54, 53, "#foreground"],
-            ["textRTL", "small", "VOLUME", 54, 66, "#foreground"],
-            ["textRTL", "small", "EXPRESSION", 54, 74, "#foreground"],
-            ["textRTL", "small", "SW.ENVELOPE", 54, 82, "#foreground"],
-            ["textRTL", "small", "OUTPUT", 54, 98, "#foreground"],
-            ["textRTL", "small", "PITCHBEND", 54, 126, "#foreground"],
-            ["textRTL", "small", "PANPOT", 54, 137, "#foreground"],
-            ["textRTL", "small", "PC", 54, 149, "#foreground"],
-            ["textRTL", "small", "CC0", 54, 159, "#foreground"],
-            ["textRTL", "small", "WAVE", 54, 174, "#foreground"],
-            ["textRTL", "small", "FREQUENCY", 54, 189, "#foreground"],
-            ["textRTL", "small", "HOLD/SOFT", 54, 200, "#foreground"],
-            ["textRTL", "small", "MUTE/POLY", 54, 221, "#foreground"],
-            ["textRTL", "small", "VOLUME", 54, 234, "#foreground"],
-            ["textRTL", "small", "EXPRESSION", 54, 242, "#foreground"],
-            ["textRTL", "small", "SW.ENVELOPE", 54, 250, "#foreground"],
-            ["textRTL", "small", "OUTPUT", 54, 266, "#foreground"],
-            ["textRTL", "small", "PITCHBEND", 54, 294, "#foreground"],
-            ["textRTL", "small", "PANPOT", 54, 305, "#foreground"],
-            ["textRTL", "small", "PC", 54, 317, "#foreground"],
-            ["textRTL", "small", "CC0", 54, 327, "#foreground"],
-            ["textRTL", "small", "WAVE", 54, 342, "#foreground"],
-            ["textRTL", "small", "FREQUENCY", 54, 357, "#foreground"],
-            ["textRTL", "small", "HOLD/SOFT", 54, 368, "#foreground"],
-            ["textRTL", "small", "SONG", 54, 388, "#foreground"],
-            ["textRTL", "small", "POSITION", 54, 407, "#foreground"],
-            ["textRTL", "small", "TICK", 54, 423, "#foreground"],
-            ["text", "small", "BPM", 138, 423, "#foreground"],                        
-            ["text", "small", "TB", 184, 423, "#foreground"],
-            ["text", "medium", "Play", 140, 8, "#foreground"],
-            ["text", "medium", "Fast", 180, 8, "#foreground"],
-            ["text", "medium", "Stop", 219, 8, "#foreground"],
-            ["text", "medium", "Pause", 256, 8, "#foreground"],
-            ["text", "medium", "Export", 296, 8, "#foreground"],
-            ["text", "medium", "Config", 336, 8, "#foreground"]
+            ["text", "small", "GREAT", 604, 25, "&foreground"],
+            ["textRTL", "small", "MUTE/POLY", 54, 53, "&foreground"],
+            ["textRTL", "small", "VOLUME", 54, 66, "&foreground"],
+            ["textRTL", "small", "EXPRESSION", 54, 74, "&foreground"],
+            ["textRTL", "small", "SW.ENVELOPE", 54, 82, "&foreground"],
+            ["textRTL", "small", "OUTPUT", 54, 98, "&foreground"],
+            ["textRTL", "small", "PITCHBEND", 54, 126, "&foreground"],
+            ["textRTL", "small", "PANPOT", 54, 137, "&foreground"],
+            ["textRTL", "small", "PC", 54, 149, "&foreground"],
+            ["textRTL", "small", "CC0", 54, 159, "&foreground"],
+            ["textRTL", "small", "WAVE", 54, 174, "&foreground"],
+            ["textRTL", "small", "FREQUENCY", 54, 189, "&foreground"],
+            ["textRTL", "small", "HOLD/SOFT", 54, 200, "&foreground"],
+            ["textRTL", "small", "MUTE/POLY", 54, 221, "&foreground"],
+            ["textRTL", "small", "VOLUME", 54, 234, "&foreground"],
+            ["textRTL", "small", "EXPRESSION", 54, 242, "&foreground"],
+            ["textRTL", "small", "SW.ENVELOPE", 54, 250, "&foreground"],
+            ["textRTL", "small", "OUTPUT", 54, 266, "&foreground"],
+            ["textRTL", "small", "PITCHBEND", 54, 294, "&foreground"],
+            ["textRTL", "small", "PANPOT", 54, 305, "&foreground"],
+            ["textRTL", "small", "PC", 54, 317, "&foreground"],
+            ["textRTL", "small", "CC0", 54, 327, "&foreground"],
+            ["textRTL", "small", "WAVE", 54, 342, "&foreground"],
+            ["textRTL", "small", "FREQUENCY", 54, 357, "&foreground"],
+            ["textRTL", "small", "HOLD/SOFT", 54, 368, "&foreground"],
+            ["textRTL", "small", "SONG", 54, 388, "&foreground"],
+            ["textRTL", "small", "POSITION", 54, 407, "&foreground"],
+            ["textRTL", "small", "TICK", 54, 423, "&foreground"],
+            ["text", "small", "BPM", 138, 423, "&foreground"],
+            ["text", "small", "TB", 184, 423, "&foreground"],
+            ["text", "medium", "Play", 140, 8, "&foreground"],
+            ["text", "medium", "Fast", 180, 8, "&foreground"],
+            ["text", "medium", "Stop", 219, 8, "&foreground"],
+            ["text", "medium", "Pause", 256, 8, "&foreground"],
+            ["text", "medium", "Export", 296, 8, "&foreground"],
+            ["text", "medium", "Config", 336, 8, "&foreground"],
+            ["bounds", 2, 8, 630, 421]
         ],
         "repeat": [
             ["button", 300, 402, 20, 16, "$this.hitDetector.regions['loop'].over && this.hitDetector.mouseDown"],
-            ["image", "$this.song.repeat ? 'repeat' : 'noRepeat'", 304, 405]
+            ["image", "$this.song.repeat ? 'repeat' : 'noRepeat'", 304, 405],
+            ["bounds", 300, 402, 21, 17]
         ],
         "playButton": [
             ["button", 132, 19, 34, 21, "$this.hitDetector.regions['play'].over && this.hitDetector.mouseDown"],
-            ["image", "play", 143, 23]
+            ["image", "play", 143, 23],
+            ["bounds", 132, 19, 35, 22]
         ],
         "fastforwardButton": [
             ["button", 172, 19, 34, 21, "$this.hitDetector.regions['fastforward'].over && this.hitDetector.mouseDown"],
-            ["image", "fastforward", 180, 22]
+            ["image", "fastforward", 180, 22],
+            ["bounds", 172, 19, 35, 22]
         ],
         "stopButton": [
             ["button", 212, 19, 34, 21, "$this.hitDetector.regions['stop'].over && this.hitDetector.mouseDown"],
-            ["image", "stop", 222, 23]
+            ["image", "stop", 222, 23],
+            ["bounds", 212, 19, 35, 22]
         ],
         "pauseButton": [
             ["button", 252, 19, 34, 21, "$this.hitDetector.regions['pause'].over && this.hitDetector.mouseDown"],
-            ["image", "pause", 264, 23]
+            ["image", "pause", 264, 23],
+            ["bounds", 252, 19, 35, 22]
         ],
         "exportButton": [
             ["button", 292, 19, 34, 21, "$this.hitDetector.regions['export'].over && this.hitDetector.mouseDown"],
-            ["image", "export", 295, 22]
+            ["image", "export", 295, 22],
+            ["bounds", 292, 19, 35, 22]
         ],
         "configButton": [
             ["button", 332, 19, 34, 21, "$this.hitDetector.regions['config'].over && this.hitDetector.mouseDown"],
-            ["image", "config", 342, 22]
+            ["image", "config", 342, 22],
+            ["bounds", 332, 19, 35, 22]
         ],
-        "githubLink": [
-            ["text", "medium", "This project is open source: https://github.com/milkey-mouse/JSSCC", 44, 435, "#dark"],
-            ["line", 164, 443, 347, 443, "#dark"]
+        "githubLinkSelected": [
+            ["text", "medium", "This project is open source: https://github.com/milkey-mouse/JSSCC", 44, 435, "&dark"],
+            ["line", 164, 443, 347, 443, "&dark"],
+            ["bounds", 44, 435, 304, 9]
+        ],
+        "githubLinkDeselected": [
+            ["filledRect", 44, 435, 310, 10, "&background"],
+            ["text", "medium", "This project is open source: https://github.com/milkey-mouse/JSSCC", 44, 435, "&dark"],
+            ["bounds", 44, 435, 310, 9]
         ]
     }
 }

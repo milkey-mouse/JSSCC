@@ -25,7 +25,7 @@ class AssetLoader {
     private tempCanvas: CanvasRenderingContext2D | null;
     private unloadedAssets: number;
     private prefix: string;
-    
+
     public onload: () => void;
 
     constructor(manifest: string = "assets/manifest.json") {
@@ -148,17 +148,16 @@ class AssetLoader {
         }
 
         for (var i = 0; i < imgdata.length; i += 4) {
-            if (imgdata[i+3] === 0) {
+            if (imgdata[i + 3] === 0) {
                 outdata[i] = bgdata[i];
-                outdata[i + 1] = bgdata[i+1];
-                outdata[i + 2] = bgdata[i+2];
-                outdata[i + 3] = bgdata[i+3];
+                outdata[i + 1] = bgdata[i + 1];
+                outdata[i + 2] = bgdata[i + 2];
+                outdata[i + 3] = bgdata[i + 3];
             } else {
                 let outColor: Color = { r: imgdata[i], g: imgdata[i + 1], b: imgdata[i + 2] };
                 let hexColor = AssetLoader.colorToHex(outColor);
                 for (var color in inPalette) {
-                    if (hexColor === (<any>inPalette)[color]) 
-                    {
+                    if (hexColor === (<any>inPalette)[color]) {
                         if (rgbPalette[color] != null) {
                             outColor = rgbPalette[color];
                         } else {
@@ -258,14 +257,109 @@ class AssetLoader {
         for (var i = 0; i < colors.length; i++) {
             let color = AssetLoader.hexToRgb((<any>this.palettes[name])[colors[i]]);
             if (color !== null) {
-                tempData.data[i*4] = color.r;
-                tempData.data[i*4+1] = color.g;
-                tempData.data[i*4+2] = color.b;
-                tempData.data[i*4+3] = 255;
+                tempData.data[i * 4] = color.r;
+                tempData.data[i * 4 + 1] = color.g;
+                tempData.data[i * 4 + 2] = color.b;
+                tempData.data[i * 4 + 3] = 255;
             }
         }
         console.log(colors);
         this.tempCanvas.putImageData(tempData, 0, 0);
         window.location.assign(this.tempCanvas.canvas.toDataURL("image/png"));
+    }
+
+    public rebakeBounds(cr: CanvasRenderer, manifestURL: string = "assets/manifest.json") {
+        // ugly stupid code to export the pretty-printed manifest.json with bounds metadata
+        var xhr = new XMLHttpRequest();
+        xhr.addEventListener("readystatechange", () => {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    var json = <ManifestXHRResponse>JSON.parse(xhr.responseText);
+                    if (json.drawGroups === undefined) {
+                        console.error("no drawGroups in this manifest");
+                        return;
+                    }
+                    var baked = JSON.stringify(json, (k, v) => { return k === "drawGroups" ? {} : v; }, 4);
+                    var dgi = baked.lastIndexOf('    "drawGroups": {}');
+                    if (dgi === -1) {
+                        console.error("couldn't find replaceable string in stringified manifest JSON");
+                        return;
+                    } else {
+                        var lines: string[] = baked.substring(0, dgi - 1).split("\n");
+                        baked = "";
+                        lines.push('    "drawGroups": {');
+                        for (var gn in json.drawGroups) {
+                            lines.push("        " + JSON.stringify(gn) + ": [");
+                            var group: DrawObject[] = json.drawGroups[gn];
+                            this.drawGroups[gn] = group;
+
+                            // actually calculate the bounds here
+                            cr.ctx.clearRect(0, 0, cr.canvas.width, cr.canvas.height);
+                            cr.drawDGroup(gn);
+                            var xMin = null;
+                            var xMax = null;
+                            var yMin = null;
+                            var yMax = null;
+
+                            var id = cr.ctx.getImageData(0, 0, cr.canvas.width, cr.canvas.height);
+                            for (var y = 0; y < id.height; y++) {
+                                for (var x = 0; x < id.width; x++) {
+                                    var pos = ((y * id.width) + x) * 4;
+                                    if (id.data[pos] != 0 ||
+                                        id.data[pos + 1] != 0 ||
+                                        id.data[pos + 2] != 0 ||
+                                        id.data[pos + 3] != 0) {
+                                        if (xMin === null || xMax === null || yMin === null || yMax === null) {
+                                            xMin = x;
+                                            xMax = x;
+                                            yMin = y;
+                                            yMax = y;
+                                        } else {
+                                            xMin = Math.min(xMin, x);
+                                            xMax = Math.max(xMax, x);
+                                            yMin = Math.min(yMin, y);
+                                            yMax = Math.max(yMax, y);
+                                        }
+                                    }
+                                }
+                            }
+                            if (xMin === null || xMax === null || yMin === null || yMax === null) {
+                                console.warn("nothing drawn; can't do bounds check for '" + gn + "'");
+                            } else {
+                                group.push(<BoundsMetadata>["newBounds", xMin, yMin, xMax - xMin + 1, yMax - yMin + 1]);
+                            }
+
+                            // start exporting JSON again
+                            for (var y = 0; y < group.length; y++) {
+                                if (group[y][0] === "bounds") {
+                                    if (y === group.length - 1) {
+                                        var lastLine = lines[lines.length - 1];
+                                        lines[lines.length - 1] = lastLine.substring(0, lastLine.length-1);
+                                    }
+                                    continue;
+                                }
+                                var stringified: string[] = [];
+                                for (var x = 0; x < group[y].length; x++) {
+                                    stringified.push(JSON.stringify(group[y][x]));
+                                }
+                                if (y === group.length-1 && stringified[0] === '"newBounds"') {
+                                    stringified[0] = '"bounds"';
+                                }
+                                lines.push("            [" + stringified.join(", ") + (y === group.length - 1 ? "]" : "],"));
+                            }
+                            lines.push("        ],");
+                        }
+                        lines.pop();
+                        lines.push("        ]\n    }\n}");
+                        // pop open the final JSON in the current tab
+                        window.location.assign("data:application/json;base64," + btoa(lines.join("\n")));
+                    }
+                } else {
+                    console.error("HTTP request for asset manifest failed with code " + xhr.status);
+                }
+            }
+        }, false);
+        xhr.open('GET', manifestURL, true);
+        xhr.send(null);
     }
 }

@@ -1,6 +1,5 @@
 // adapted from http://quirksmode.org/js/cookies.html
-class Cookies
-{
+class Cookies {
     public static write(name: string, value: string, days: number = 365): void {
         if (days) {
             var date = new Date();
