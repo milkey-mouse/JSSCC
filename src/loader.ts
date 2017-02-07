@@ -285,6 +285,7 @@ class AssetLoader {
                         console.error("couldn't find replaceable string in stringified manifest JSON");
                         return;
                     } else {
+                        // TODO: Don't just cut it off, serialize objects after drawGroups as well
                         var lines: string[] = baked.substring(0, dgi - 1).split("\n");
                         baked = "";
                         lines.push('    "drawGroups": {');
