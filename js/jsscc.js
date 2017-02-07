@@ -13,6 +13,8 @@ var CanvasRenderer = (function () {
         this.offsetX = 0;
         this.offsetY = 0;
         this.configOpen = false;
+        this.framesDrawn = 0;
+        this.drawStartTime = 0;
         window.addEventListener("load", function () {
             _this.loadEvents--;
             _this.initCanvas();
@@ -22,7 +24,11 @@ var CanvasRenderer = (function () {
                 _this.clear();
                 _this.ctx.fillStyle = _this.palette.foreground;
                 _this.ctx.fillText("Loading...", _this.canvas.width / 2, _this.canvas.height / 2);
-                window.setTimeout(function () { _this.clear(); _this.redraw(); }, 0);
+                window.setTimeout(function () {
+                    _this.clear();
+                    _this.redraw();
+                    _this.renderFrame();
+                }, 5);
             }
             else {
                 _this.ctx.fillText("Loading assets...", _this.canvas.width / 2, _this.canvas.height / 2);
@@ -35,7 +41,11 @@ var CanvasRenderer = (function () {
                 _this.clear();
                 _this.ctx.fillStyle = _this.palette.foreground;
                 _this.ctx.fillText("Loading...", _this.canvas.width / 2, _this.canvas.height / 2);
-                window.setTimeout(function () { _this.clear(); _this.redraw(); }, 0);
+                window.setTimeout(function () {
+                    _this.clear();
+                    _this.redraw();
+                    _this.renderFrame();
+                }, 0);
             }
         };
     }
@@ -127,6 +137,7 @@ var CanvasRenderer = (function () {
         }
         this.ctx.fillStyle = this.palette.background;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        Object.keys(this.palette).join("\n");
     };
     CanvasRenderer.prototype.drawButton = function (x, y, w, h, pressed) {
         if (pressed === void 0) { pressed = false; }
@@ -147,8 +158,6 @@ var CanvasRenderer = (function () {
         this.ctx.putImageData(this.loader.getImage(image), x, y);
     };
     CanvasRenderer.prototype.drawLine = function (x1, y1, x2, y2, color) {
-        x1 += this.offsetX;
-        y1 += this.offsetY;
         x2 += this.offsetX;
         y2 += this.offsetY;
         this.ctx.strokeStyle = color;
@@ -269,12 +278,9 @@ var CanvasRenderer = (function () {
             this.ctx.strokeRect(x + (i * 2) + (i > 0 ? 13 : 16) + 0.5, y + 5 - height, 0, height + 1);
         }
     };
-    CanvasRenderer.prototype.drawWaveform = function (x, y, width, color) {
+    CanvasRenderer.prototype.drawWaveform = function (x, y, width, color, checkWindow) {
         this.ctx.fillStyle = color;
-        if (this.chan.drum) {
-            this.drawDGroup("channelButton");
-        }
-        else if (this.chan.wave !== null) {
+        if (this.chan.wave !== null) {
             this.ctx.fillStyle = this.palette.light;
             for (var i = 0; i < width; i++) {
                 var val = Math.round(this.chan.wave(i / width) * 7.5);
@@ -298,7 +304,12 @@ var CanvasRenderer = (function () {
         var region = new HitRegion(x, y, 33, 13);
         region.onmousedown = function (x, y) {
             _this.song.channels[idx].mute = !_this.song.channels[idx].mute;
-            _this.drawChannel(idx, "channelMutePoly");
+            _this.drawChannel(idx, "channelMute");
+            _this.song.channels[idx].volume = 0;
+            _this.song.channels[idx].expression = 0;
+            _this.song.channels[idx].envelope = 0;
+            _this.song.channels[idx].output = 0;
+            _this.drawChannel(idx, "channelVEN");
         };
         this.hitDetector.addHitRegion(region, "chan" + idx);
     };
@@ -342,6 +353,19 @@ var CanvasRenderer = (function () {
         var createRegion = function (x, y, w, h, name, callback) {
             var r = new HitRegion(x, y, w, h);
             var el = function (e) {
+                switch (name) {
+                    case "stop":
+                        _this.song.playState = PlayState.STOPPED;
+                        break;
+                    case "play":
+                        _this.framesDrawn = 0;
+                        _this.drawStartTime = performance.now();
+                        _this.song.playState = PlayState.PLAYING;
+                        break;
+                    case "pause":
+                        _this.song.playState = PlayState.PAUSED;
+                        break;
+                }
                 _this.drawDGroup(name + "Button");
                 window.removeEventListener("mouseup", el, false);
             };
@@ -371,34 +395,44 @@ var CanvasRenderer = (function () {
         link.onexit = function () { _this.drawDGroup("githubLinkDeselected"); };
         this.hitDetector.addHitRegion(link, "link");
     };
-    CanvasRenderer.prototype.drawChannel = function (idx, group) {
+    CanvasRenderer.prototype.drawChannel = function (idx, group, checkWindow) {
         var x = ((idx % 16) * 36) + 58;
         var y = (Math.floor(idx / 16) * 168) + 49;
         this.chan = this.song.channels[idx];
         if (group !== undefined) {
-            this.drawDGroup(group, x, y);
+            this.drawDGroup(group, x, y, checkWindow);
         }
         else {
-            this.drawAllGroupsWithName("channel", x, y);
+            this.drawAllGroupsWithName("channel", x, y, checkWindow);
         }
     };
-    CanvasRenderer.prototype.drawAllGroupsWithName = function (name, x, y) {
+    CanvasRenderer.prototype.drawAllGroupsWithName = function (name, x, y, checkWindow) {
         for (var gn in this.loader.drawGroups) {
             if (typeof gn === "string" && gn.substring(0, name.length) === name) {
-                this.drawDGroup(gn, x, y);
+                this.drawDGroup(gn, x, y, checkWindow);
             }
         }
     };
     CanvasRenderer.prototype.drawDObject = function (drawObj) {
-        if (drawObj[0] === "bounds") {
-            // bounds objects do not need to be rendered
-            // they are essentially metadata for the occlusion
+        if (drawObj[0] === "nop" || drawObj[0] === "bounds") {
             return;
         }
-        var args = drawObj.slice(1);
+        // evaluate the arguments according to some rules:
+        // - if the argument is not a string, don't do anything to it
+        // - if the argument starts with "$", eval the rest of it and
+        //   set the arg to the result
+        // - if the argument starts with "&", get the corresponding
+        //   color from the current palette (this could have been done)
+        //   with "$" and eval as above, but it's done often enough
+        //   that this shortcut/optimization makes sense
+        // - if the argument starts with a "#", interpret it as a hex
+        //   code (the AssetLoader.canonicalizeHex function takes care
+        //   of the codes later, making sure the formatting is correct,
+        //   converting #F00 to #FF0000, etc.)
+        var args = new Array(drawObj.length);
         var numbers = 0;
-        for (var i = 0; i < args.length; i++) {
-            var arg = args[i];
+        for (var i = 0; i < drawObj.length; i++) {
+            var arg = drawObj[i];
             if (typeof arg === "string" && arg.length > 0) {
                 switch (arg.charAt(0)) {
                     case "$":
@@ -406,28 +440,36 @@ var CanvasRenderer = (function () {
                         break;
                     case "&":
                         var color = arg.substr(1);
-                        if (this.palette.hasOwnProperty(color)) {
-                            args[i] = this.palette[color];
-                        }
+                        args[i] = this.palette.hasOwnProperty(color) ? this.palette[color] : drawObj[i];
+                        break;
+                    default:
+                        args[i] = drawObj[i];
                         break;
                 }
             }
-            else if (typeof arg === "number" && numbers < 2) {
-                // we have to cast args[i] to a number because even though it
-                // must be a number the type checker doesn't realize it
-                args[i] = (args[i]) + (numbers === 0 ? this.offsetX : this.offsetY);
+            else if (numbers < 2 && typeof arg === "number") {
+                args[i] = arg + (numbers === 0 ? this.offsetX : this.offsetY);
                 numbers++;
             }
+            else {
+                args[i] = drawObj[i];
+            }
+        }
+        // if the object type is "nop", completely disregard it; this is put
+        // after the argument transformation so it can run code to determine
+        // if the draw is a nop (e.g. don't draw the waveform on a drum channel)
+        if (args[0] === "nop" || args[0] === "bounds") {
+            return;
         }
         // we need to convert the name from lowerCamelCase to UpperCamelCase
         // to put "draw" before it, but otherwise the DObject types have a
         // one-to-one mapping with the draw functions above
-        var func = this["draw" + drawObj[0].charAt(0).toUpperCase() + drawObj[0].substring(1)];
-        if (func !== undefined) {
-            func.apply(this, args);
+        var func = this["draw" + args[0].charAt(0).toUpperCase() + args[0].substring(1)];
+        if (typeof func === "function") {
+            func.apply(this, args.slice(1));
         }
         else {
-            console.warn("unrecognized UI item: " + drawObj);
+            console.warn("unrecognized UI item ", args);
         }
     };
     CanvasRenderer.prototype.drawDGroup = function (group, offsetX, offsetY, checkWindow) {
@@ -459,59 +501,85 @@ var CanvasRenderer = (function () {
                 }
             }
         }
-        var windowGroup = this.loader.drawGroups["preferencesWindow"];
-        var windowBounds = windowGroup[windowGroup.length - 1].slice(1);
-        var windowX = (this.canvas.width - windowBounds[2]) / 2;
-        var windowY = (this.canvas.height - windowBounds[3]) / 2;
-        if (redrawPreferencesWindow && group[group.length - 1][0] === "bounds") {
-            // get cached bounds from manifest.json
-            var bounds = group[group.length - 1].slice(1);
-            bounds[0] += this.offsetX;
-            bounds[1] += this.offsetY;
-            // reset the DGroup's area to the background color
-            this.ctx.fillStyle = this.palette.background;
-            this.ctx.fillRect(bounds[0], bounds[1], bounds[2], bounds[3]);
-            // draw the group's objects
-            for (var i = 0; i < group.length; i++) {
-                this.drawDObject(group[i]);
+        var windowGroup;
+        var windowBounds;
+        var windowX;
+        var windowY;
+        if (redrawPreferencesWindow) {
+            windowGroup = this.loader.drawGroups["preferencesWindow"];
+            windowBounds = windowGroup[windowGroup.length - 1].slice(1);
+            windowX = (this.canvas.width - windowBounds[2]) / 2;
+            windowY = (this.canvas.height - windowBounds[3]) / 2;
+            if (group[group.length - 1][0] === "bounds") {
+                // get cached bounds from manifest.json
+                var bounds = group[group.length - 1].slice(1);
+                bounds[0] += this.offsetX;
+                bounds[1] += this.offsetY;
+                // reset the DGroup's area to the background color
+                this.ctx.fillStyle = this.palette.background;
+                this.ctx.fillRect(bounds[0], bounds[1], bounds[2], bounds[3]);
+                // draw the group's objects
+                for (var i = 0; i < group.length; i++) {
+                    this.drawDObject(group[i]);
+                }
+                // draw the semi-transparent overlay
+                this.ctx.fillStyle = "rgba(1, 1, 1, 0.75)";
+                this.ctx.fillRect(bounds[0], bounds[1], bounds[2], bounds[3]);
+                // and now for something completely different:
+                // if the bounds are entirely outside those of all config window bounds,
+                // we'll skip the redraw entirely because its pixels were never affected
+                windowBounds[0] += windowX;
+                windowBounds[1] += windowY;
+                // this code sets redrawPreferencesWindow to false if the rectangles are
+                // not intersecting (see https://stackoverflow.com/a/2752387)
+                redrawPreferencesWindow = !(windowBounds[0] > (bounds[0] + bounds[2]) ||
+                    windowBounds[0] + windowBounds[2] < bounds[0] ||
+                    windowBounds[1] > bounds[1] + bounds[3] ||
+                    windowBounds[1] + windowBounds[3] < bounds[1]);
+                // if they are 100% intersecting (i.e. one is inside the other), skip
+                // drawing the inside object entirely
+                if (redrawPreferencesWindow) {
+                    redrawPreferencesWindow = bounds[0] < windowBounds[0] ||
+                        bounds[1] < windowBounds[1] ||
+                        bounds[0] + bounds[2] > windowBounds[0] + windowBounds[2] ||
+                        bounds[1] + bounds[3] > windowBounds[1] + windowBounds[3];
+                }
             }
-            // draw the semi-transparent overlay
-            this.ctx.fillStyle = "rgba(1, 1, 1, 0.75)";
-            this.ctx.fillRect(bounds[0], bounds[1], bounds[2], bounds[3]);
-            // and now for something completely different:
-            // if the bounds are entirely outside those of all config window bounds,
-            // we'll skip the redraw entirely because its pixels were never affected
-            windowBounds[0] += windowX;
-            windowBounds[1] += windowY;
-            // this code sets redrawPreferencesWindow to false if the rectangles are
-            // not intersecting (see https://stackoverflow.com/a/2752387)
-            redrawPreferencesWindow = !(windowBounds[0] > (bounds[0] + bounds[2]) ||
-                (windowBounds[0] + windowBounds[2]) < bounds[0] ||
-                windowBounds[1] > (bounds[1] + bounds[3]) ||
-                (windowBounds[1] + windowBounds[3]) < bounds[1]);
+            else {
+                console.warn("no bounds for group", group);
+            }
+            // reset offsets
+            if (this.offsetX !== 0 || this.offsetY !== 0) {
+                this.offsetX = 0;
+                this.offsetY = 0;
+            }
+            this.drawAllGroupsWithName("preferences", windowX, windowY);
         }
         else {
-            if (redrawPreferencesWindow) {
-                console.warn("no bounds for group");
-            }
             for (var i = 0; i < group.length; i++) {
                 this.drawDObject(group[i]);
             }
-        }
-        if (this.offsetX !== 0 || this.offsetY !== 0) {
-            this.offsetX = 0;
-            this.offsetY = 0;
-        }
-        if (redrawPreferencesWindow) {
-            this.drawAllGroupsWithName("preferences", windowX, windowY);
+            // reset offsets
+            if (this.offsetX !== 0 || this.offsetY !== 0) {
+                this.offsetX = 0;
+                this.offsetY = 0;
+            }
         }
     };
     CanvasRenderer.prototype.redraw = function () {
+        // we don't need to redraw the window after every group
+        // so disable the check until the very end (once)
+        //this.drawDGroup("clear", undefined, undefined, false);
         for (var group in this.loader.drawGroups) {
-            this.drawDGroup(group);
+            this.drawDGroup(group, undefined, undefined, false);
         }
         for (var idx = 0; idx < this.song.channels.length; idx++) {
-            this.drawChannel(idx);
+            this.drawChannel(idx, undefined, false);
+        }
+        if (this.configOpen) {
+            this.ctx.fillStyle = "rgba(1, 1, 1, 0.75)";
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.drawConfig();
         }
     };
     CanvasRenderer.prototype.openConfig = function () {
@@ -528,19 +596,21 @@ var CanvasRenderer = (function () {
         newBG.b = Math.round(newBG.b * 0.25);
         document.body.style.backgroundColor = AssetLoader.colorToHex(newBG);
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        var windowWidth = 200;
-        var windowHeight = 250;
-        this.initConfig(windowWidth, windowHeight);
-        this.drawConfig(windowWidth, windowHeight);
+        this.initConfig();
+        this.drawConfig();
         return true;
     };
-    CanvasRenderer.prototype.initConfig = function (width, height) {
+    CanvasRenderer.prototype.initConfig = function () {
         var _this = this;
+        var windowGroup = this.loader.drawGroups["preferencesWindow"];
+        var windowBounds = windowGroup[windowGroup.length - 1].slice(1);
+        var width = windowBounds[2];
+        var height = windowBounds[3];
         var close = new HitRegion((this.canvas.width + width) / 2 - 23, (this.canvas.height - height) / 2 + 5, 16, 15);
         close.onmousedown = function () { _this.closeConfig(); };
         this.hitDetector.addHitRegion(close, "close");
-        var windowX = (this.canvas.width - width) / 2;
-        var windowY = (this.canvas.height - height) / 2;
+        var windowX = (this.canvas.width - windowBounds[2]) / 2;
+        var windowY = (this.canvas.height - windowBounds[3]) / 2;
         var paletteTextBox = new HitRegion(windowX + width * 0.4 - 1, windowY + 33, width * 0.6 - 29, 16);
         paletteTextBox.onmousedown = function () {
             _this.drawButton(windowX + width - 28, windowY + 33, 16, 16, true);
@@ -553,18 +623,20 @@ var CanvasRenderer = (function () {
         this.hitDetector.addHitRegion(paletteTextBox, "paletteTB");
         var paletteButton = new HitRegion(windowX + width - 29, windowY + 33, 16, 16);
         var mouseUp = function () {
-            _this.drawDGroup("preferencesDropDown", windowX, windowY);
+            _this.drawDGroup("preferencesColorPalette", windowX, windowY);
             window.removeEventListener("mouseup", mouseUp);
         };
         paletteButton.onmousedown = function () {
-            _this.drawDGroup("preferencesDropDown", windowX, windowY);
+            _this.drawDGroup("preferencesColorPalette", windowX, windowY);
             window.addEventListener("mouseup", mouseUp, false);
         };
         this.hitDetector.addHitRegion(paletteButton, "paletteDD");
     };
-    CanvasRenderer.prototype.drawConfig = function (width, height) {
-        var windowX = (this.canvas.width - width) / 2;
-        var windowY = (this.canvas.height - height) / 2;
+    CanvasRenderer.prototype.drawConfig = function () {
+        var windowGroup = this.loader.drawGroups["preferencesWindow"];
+        var windowBounds = windowGroup[windowGroup.length - 1].slice(1);
+        var windowX = (this.canvas.width - windowBounds[2]) / 2;
+        var windowY = (this.canvas.height - windowBounds[3]) / 2;
         this.drawAllGroupsWithName("preferences", windowX, windowY);
     };
     CanvasRenderer.prototype.closeConfig = function () {
@@ -574,7 +646,7 @@ var CanvasRenderer = (function () {
             this.tempRegions = null;
         }
         else {
-            console.warn("there were no tempRegions to restore from; this should never happen!");
+            console.error("no tempRegions");
         }
         this.redraw();
         document.body.style.backgroundColor = this.palette.background;
@@ -584,7 +656,60 @@ var CanvasRenderer = (function () {
         this.drawDGroup("configButton");
     };
     CanvasRenderer.prototype.rebakeBounds = function (manifestURL) {
+        // channelButton won't render unless the channel is a drum channel
+        this.chan.drum = true;
         this.loader.rebakeBounds(this, manifestURL);
+    };
+    CanvasRenderer.prototype.perfTest = function (lengthMS) {
+        if (lengthMS === void 0) { lengthMS = 5000; }
+        console.log("running performance test for " + lengthMS / 1000 + " seconds");
+        var i = 0;
+        var t0 = performance.now();
+        var t1 = t0;
+        for (var frames = 0; (t1 - t0) < lengthMS; frames++) {
+            // redraw everything that would be redrawn in a standard frame:
+            // channels
+            for (i = 0; i < 32; i++) {
+                this.drawChannel(i, "channelVEN");
+                //this.drawChannel(i, "channelFrequency");
+                this.drawChannel(i, "channelPoly");
+            }
+            // these only need to be drawn about once a second normally
+            if (frames % 30 == 0) {
+                for (i = 0; i < 32; i++) {
+                    this.drawChannel(i, "channelFrequency");
+                }
+                this.drawDGroup("positionSlider");
+                this.drawDGroup("buffer");
+            }
+            t1 = performance.now();
+        }
+        console.log("perf test completed");
+        console.log("milliseconds taken: " + (t1 - t0));
+        console.log("frames drawn: " + frames);
+        console.log("average fps: " + frames / (t1 - t0) * 1000);
+    };
+    CanvasRenderer.prototype.renderFrame = function () {
+        var _this = this;
+        if (this.song.playState === PlayState.PLAYING || this.song.playState === PlayState.FASTFORWARD) {
+            var pn = (performance.now() / 1000);
+            for (var i = 0; i < 32; i++) {
+                var x = (Waveform.sine(pn + (i / 10)) + 1) * 0.505;
+                this.chan = this.song.channels[i];
+                this.chan.volume = x;
+                this.chan.expression = x;
+                this.chan.envelope = x;
+                this.chan.output = x;
+                this.drawChannel(i, "channelVEN");
+                //this.drawChannel(i, "channelFrequency");
+                this.drawChannel(i, "channelPoly");
+            }
+            this.framesDrawn++;
+            if (this.framesDrawn % 30 === 0) {
+                console.log((this.framesDrawn / (performance.now() - this.drawStartTime) * 1000) + " fps");
+            }
+        }
+        window.requestAnimationFrame(function () { _this.renderFrame(); });
     };
     return CanvasRenderer;
 }());
@@ -653,9 +778,15 @@ var BitmapFont = (function () {
     }
     BitmapFont.prototype.drawText = function (ctx, text, x, y, color) {
         var newPalette = { foreground: color };
+        var origX = x;
         for (var i = 0; i < text.length; i++) {
             if (text[i] === " ") {
                 x += this.spaceWidth + this.spaceBetweenLetters;
+                continue;
+            }
+            else if (text[i] === "\n") {
+                x = origX;
+                y += this.height + this.spaceWidth;
                 continue;
             }
             var charIdx = this.charMap.indexOf(text[i]);
@@ -677,11 +808,18 @@ var BitmapFont = (function () {
             }
         }
     };
+    // TODO: consolidate drawText & drawTextRTL into one function
     BitmapFont.prototype.drawTextRTL = function (ctx, text, x, y, color) {
         var newPalette = { foreground: color };
+        var origX = x;
         for (var i = text.length - 1; i >= 0; i--) {
             if (text[i] === " ") {
                 x -= this.spaceWidth + this.spaceBetweenLetters;
+                continue;
+            }
+            else if (text[i] === "\n") {
+                x = origX;
+                y += this.height + this.spaceWidth;
                 continue;
             }
             var charIdx = this.charMap.indexOf(text[i]);
@@ -729,6 +867,8 @@ var HitDetector = (function () {
         this.regions = {};
         this.ctx = ctx;
         this.scale = 1;
+        this.currentNamespace = "default";
+        this.namespaces = {};
         // use lambdas to have the right context for 'this'
         ctx.canvas.addEventListener("mousedown", function (e) { _this.onMouseDown(e); }, false);
         ctx.canvas.addEventListener("mousemove", function (e) { _this.onMouseMove(e); }, false);
@@ -1166,6 +1306,13 @@ var AssetLoader = (function () {
     };
     return AssetLoader;
 }());
+var PlayState;
+(function (PlayState) {
+    PlayState[PlayState["STOPPED"] = 0] = "STOPPED";
+    PlayState[PlayState["PAUSED"] = 1] = "PAUSED";
+    PlayState[PlayState["PLAYING"] = 2] = "PLAYING";
+    PlayState[PlayState["FASTFORWARD"] = 3] = "FASTFORWARD";
+})(PlayState || (PlayState = {}));
 var Song = (function () {
     function Song(channelCount) {
         if (channelCount === void 0) { channelCount = 32; }
@@ -1173,12 +1320,13 @@ var Song = (function () {
         this.channels = [];
         for (var i = 0; i < channelCount; i++) {
             this.channels.push(new Channel());
-            this.channels[i].wave = Waveform.sine;
+            this.channels[i].wave = Waveform.triangle;
         }
         this.channels[9].drum = true;
         this.channels[25].drum = true;
         this.position = 0;
         this.buffer = 1;
+        this.playState = PlayState.STOPPED;
         this.repeat = Cookies.get("loop", "true") === "true";
         this.fileName = null;
     }

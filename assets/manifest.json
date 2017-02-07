@@ -16,7 +16,7 @@
             "white": "#fff",
             "black": "#000"
         },
-        "c64": {
+        "commodore": {
             "background": "#08f",
             "foreground": "#00a",
             "dark": "#333",
@@ -43,6 +43,7 @@
     },
     "images": [
         "images/dropdown.png",
+        "images/dropdownFlipped.png",
         "images/drum.png",
         "images/gs.png",
         "images/logo.png",
@@ -86,30 +87,33 @@
             "map": "!\"&$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
         }
     ],
-    "note": "Use this.ui.rebakeBounds() in the JS console to regenerate the bounds entries below.",
+    "note": "Use ui.rebakeBounds() in the JS console to regenerate the bounds entries below.",
     "drawGroups": {
-        "channelMutePoly": [
+        "channelMute": [
             ["strokeRect", 0, 0, 33, 13, "&foreground"],
             ["image", "$this.chan.mute ? 'muted' : 'unmuted'", 3, 3],
             ["strokeRect", 16, 2, 15, 9, "&foreground"],
-            ["filledRect", 19, 5, 10, 4, "&foreground"],
             ["strokeRect", 18, 4, 11, 5, "&dark"],
             ["bounds", 0, 0, 34, 14]
         ],
+        "channelPoly": [
+            ["filledRect", 19, 5, 10, 4, "&foreground"],
+            ["bounds", 19, 5, 10, 4]
+        ],
         "channelVENLabels": [
+            ["image", "vuLabels", 3, 18],
             ["strokeRect", 0, 15, 33, 58, "&foreground"],
             ["strokeRect", 2, 24, 5, 47, "&foreground"],
             ["strokeRect", 7, 24, 5, 47, "&foreground"],
             ["strokeRect", 12, 24, 5, 47, "&foreground"],
             ["strokeRect", 17, 24, 14, 47, "&foreground"],
-            ["image", "vuLabels", 3, 18],
             ["bounds", 0, 15, 34, 59]
         ],
         "channelVEN": [
-            ["vuMeter", 4, 26, 1, 15, "$this.chan.volume"],
-            ["vuMeter", 9, 26, 1, 15, "$this.chan.expression"],
-            ["vuMeter", 14, 26, 1, 15, "$this.chan.envelope"],
-            ["vuMeter", 19, 26, 10, 15, "$this.chan.output"],
+            ["vuMeter", 4, 26, 1, 15, "$this.chan.mute ? 0 : this.chan.volume"],
+            ["vuMeter", 9, 26, 1, 15, "$this.chan.mute ? 0 : this.chan.expression"],
+            ["vuMeter", 14, 26, 1, 15, "$this.chan.mute ? 0 : this.chan.envelope"],
+            ["vuMeter", 19, 26, 10, 15, "$this.chan.mute ? 0 : this.chan.output"],
             ["bounds", 4, 26, 26, 44]
         ],
         "channelPitchbend": [
@@ -132,11 +136,6 @@
             ["textRTL", "small", "$'000'.substring(('' + this.chan.cc0).length) + this.chan.cc0", 32, 110, "&white"],
             ["bounds", 0, 108, 34, 10]
         ],
-        "channelButton": [
-            ["button", 0, 119, 33, 17],
-            ["image", "drum", 3, 124],
-            ["bounds", 0, 119, 34, 18]
-        ],
         "channelWaveform": [
             ["filledRect", 0, 119, 33, 17, "&background"],
             ["strokeRect", 0, 119, 33, 17, "&foreground"],
@@ -144,7 +143,13 @@
             ["waveform", 0, 118, 32, "&light"],
             ["bounds", 0, 119, 34, 18]
         ],
+        "channelButton": [
+            ["$this.chan.drum ? 'button' : 'nop'", 0, 119, 33, 17],
+            ["$this.chan.drum ? 'image' : 'nop'", "drum", 3, 124],
+            ["bounds", 0, 119, 34, 18]
+        ],
         "channelFrequency": [
+            ["filledRect", 0, 138, 34, 10, "&background"],
             ["strokeRect", 0, 138, 33, 9, "&foreground"],
             ["textRTL", "small", "$'00000'.substring(('' + this.chan.freq).length) + this.chan.freq", 32, 140, "&white"],
             ["bounds", 0, 138, 34, 10]
@@ -163,58 +168,22 @@
             ["text", "large", "Color Palette", 12, 35, "&foreground"],
             ["bounds", 0, 0, 200, 250]
         ],
-        "preferencesDropDown": [
+        "preferencesColorPalette": [
             ["button", 80, 33, 92, 16, true],
             ["button", 172, 33, 16, 16, "$this.configOpen && this.hitDetector.regions['paletteDD'].over && this.hitDetector.mouseDown"],
             ["image", "dropdown", 178, 40],
             ["text", "large", "$this.paletteName", 84, 35, "&white"],
             ["bounds", 80, 33, 109, 17]
         ],
+        "preferencesPalettesMenu": [
+            ["image", "dropdownFlipped", 178, 40],
+            ["filledRect", 80, 50, 109, "$this.palette === null ? 0 : Object.keys(this.loader.palettes).length * 14", "light"],
+            ["text", "large", "$this.palette === null ? '' : Object.keys(this.loader.palettes).join('\\n')", 84, 51, "&white"],
+            ["bounds", 80, 40, 109, 80]
+        ],
         "clear": [
             ["filledRect", 0, 0, "$this.canvas.width", "$this.canvas.height", "&background"],
             ["bounds", 0, 0, 634, 444]
-        ],
-        "logos": [
-            ["image", "logo", 15, 10],
-            ["image", "sparkles", 424, 4],
-            ["image", "midi", 436, 412],
-            ["image", "gs", 482, 413],
-            ["image", "xg", 525, 413],
-            ["image", "scc", 575, 413],
-            ["image", "texture", 358, 410, 64, 32],
-            ["text", "medium", "Alpha v. 0.0.1", 39, 39, "&white"],
-            ["text", "medium", "(C) 2016 meme.institute + Milkey Mouse", 453, 4, "&dark"],
-            ["text", "medium", "(C) 2016 meme.institute + Milkey Mouse", 452, 3, "&white"],
-            ["text", "medium", "Inspired by Gashisoft GXSCC", 500, 14, "&dark"],
-            ["bounds", 15, 3, 610, 439]
-        ],
-        "buffer": [
-            ["filledRect", 412, 32, 219, 9, "&background"],
-            ["pbar", "$this.song.buffer", 413, 33, 218, 8, "&light"],
-            ["filledRect", 412, 32, 219, 9, "&background"],
-            ["strokeRect", 412, 32, 219, 9, "&foreground"],
-            ["bounds", 412, 32, 220, 10]
-        ],
-        "positionSlider": [
-            ["filledRect", 58, 402, 236, 16, "&background"],
-            ["pbar", "$this.song.position", 59, 402, 235, 16, "&dark"],
-            ["strokeRect", 58, 402, 236, 16, "&foreground"],
-            ["bounds", 58, 402, 237, 17]
-        ],
-        "songInfo": [
-            ["filledRect", 58, 383, 573, 14, "&dark"],
-            ["strokeRect", 58, 383, 573, 14, "&dark"],
-            ["filledRect", 58, 421, 74, 9, "&background"],
-            ["strokeRect", 58, 421, 74, 9, "&foreground"],
-            ["filledRect", 159, 421, 20, 9, "&background"],
-            ["strokeRect", 159, 421, 20, 9, "&foreground"],
-            ["filledRect", 198, 421, 20, 9, "&background"],
-            ["strokeRect", 198, 421, 20, 9, "&foreground"],
-            ["text", "large", "$this.song.fileName === null ? 'Drag and drop a MIDI file into this window to play' : this.song.fileName", 60, 385, "&light"],
-            ["textRTL", "small", "00 : 00 : 00 '000", 131, 423, "&white", 1],
-            ["textRTL", "small", "000", 178, 423, "&white"],
-            ["textRTL", "small", "000", 217, 423, "&white"],
-            ["bounds", 58, 383, 574, 48]
         ],
         "labels": [
             ["textRTL", "small", "BUFFER", 410, 35, "&foreground"],
@@ -263,38 +232,88 @@
             ["text", "medium", "Config", 336, 8, "&foreground"],
             ["bounds", 2, 8, 630, 421]
         ],
+        "sparkles": [
+            ["image", "sparkles", 424, 4],
+            ["text", "medium", "(C) 2016 meme.institute + Milkey Mouse", 453, 4, "&dark"],
+            ["text", "medium", "(C) 2016 meme.institute + Milkey Mouse", 452, 3, "&white"],
+            ["text", "medium", "Inspired by Gashisoft GXSCC", 500, 14, "&dark"],
+            ["bounds", 424, 3, 201, 20]
+        ],
+        "logo": [
+            ["image", "logo", 15, 10],
+            ["text", "medium", "Alpha v. 0.0.1", 39, 39, "&white"],
+            ["bounds", 15, 10, 80, 38]
+        ],
+        "formatLogos": [
+            ["image", "midi", 436, 412],
+            ["image", "gs", 482, 413],
+            ["image", "xg", 525, 413],
+            ["image", "scc", 575, 413],
+            ["image", "texture", 358, 410, 64, 32],
+            ["bounds", 358, 410, 267, 32]
+        ],
+        "buffer": [
+            ["filledRect", 412, 32, 219, 9, "&background"],
+            ["pbar", "$this.song.buffer", 413, 33, 218, 8, "&light"],
+            ["filledRect", 412, 32, 219, 9, "&background"],
+            ["strokeRect", 412, 32, 219, 9, "&foreground"],
+            ["bounds", 412, 32, 220, 10]
+        ],
+        "positionSlider": [
+            ["filledRect", 58, 402, 236, 16, "&background"],
+            ["pbar", "$this.song.position", 59, 402, 235, 16, "&dark"],
+            ["strokeRect", 58, 402, 236, 16, "&foreground"],
+            ["bounds", 58, 402, 237, 17]
+        ],
+        "songName": [
+            ["filledRect", 58, 383, 574, 15, "&dark"],
+            ["text", "large", "$this.song.fileName === null ? 'Drag and drop a MIDI file into this window to play' : this.song.fileName", 60, 385, "&light"],
+            ["bounds", 58, 383, 574, 15]
+        ],
+        "songInfo": [
+            ["filledRect", 58, 421, 74, 9, "&background"],
+            ["strokeRect", 58, 421, 74, 9, "&foreground"],
+            ["filledRect", 159, 421, 20, 9, "&background"],
+            ["strokeRect", 159, 421, 20, 9, "&foreground"],
+            ["filledRect", 198, 421, 20, 9, "&background"],
+            ["strokeRect", 198, 421, 20, 9, "&foreground"],
+            ["textRTL", "small", "00 : 00 : 00 '000", 131, 423, "&white", 1],
+            ["textRTL", "small", "000", 178, 423, "&white"],
+            ["textRTL", "small", "000", 217, 423, "&white"],
+            ["bounds", 58, 421, 161, 10]
+        ],
         "repeat": [
-            ["button", 300, 402, 20, 16, "$this.hitDetector.regions['loop'].over && this.hitDetector.mouseDown"],
+            ["button", 300, 402, 20, 16, "$!this.configOpen && this.hitDetector.regions['loop'].over && this.hitDetector.mouseDown"],
             ["image", "$this.song.repeat ? 'repeat' : 'noRepeat'", 304, 405],
             ["bounds", 300, 402, 21, 17]
         ],
         "playButton": [
-            ["button", 132, 19, 34, 21, "$this.hitDetector.regions['play'].over && this.hitDetector.mouseDown"],
+            ["button", 132, 19, 34, 21, "$!this.configOpen && this.hitDetector.regions['play'].over && this.hitDetector.mouseDown"],
             ["image", "play", 143, 23],
             ["bounds", 132, 19, 35, 22]
         ],
         "fastforwardButton": [
-            ["button", 172, 19, 34, 21, "$this.hitDetector.regions['fastforward'].over && this.hitDetector.mouseDown"],
+            ["button", 172, 19, 34, 21, "$!this.configOpen && this.hitDetector.regions['fastforward'].over && this.hitDetector.mouseDown"],
             ["image", "fastforward", 180, 22],
             ["bounds", 172, 19, 35, 22]
         ],
         "stopButton": [
-            ["button", 212, 19, 34, 21, "$this.hitDetector.regions['stop'].over && this.hitDetector.mouseDown"],
+            ["button", 212, 19, 34, 21, "$!this.configOpen && this.hitDetector.regions['stop'].over && this.hitDetector.mouseDown"],
             ["image", "stop", 222, 23],
             ["bounds", 212, 19, 35, 22]
         ],
         "pauseButton": [
-            ["button", 252, 19, 34, 21, "$this.hitDetector.regions['pause'].over && this.hitDetector.mouseDown"],
+            ["button", 252, 19, 34, 21, "$!this.configOpen && this.hitDetector.regions['pause'].over && this.hitDetector.mouseDown"],
             ["image", "pause", 264, 23],
             ["bounds", 252, 19, 35, 22]
         ],
         "exportButton": [
-            ["button", 292, 19, 34, 21, "$this.hitDetector.regions['export'].over && this.hitDetector.mouseDown"],
+            ["button", 292, 19, 34, 21, "$!this.configOpen && this.hitDetector.regions['export'].over && this.hitDetector.mouseDown"],
             ["image", "export", 295, 22],
             ["bounds", 292, 19, 35, 22]
         ],
         "configButton": [
-            ["button", 332, 19, 34, 21, "$this.hitDetector.regions['config'].over && this.hitDetector.mouseDown"],
+            ["button", 332, 19, 34, 21, "$!this.configOpen && this.hitDetector.regions['config'].over && this.hitDetector.mouseDown"],
             ["image", "config", 342, 22],
             ["bounds", 332, 19, 35, 22]
         ],

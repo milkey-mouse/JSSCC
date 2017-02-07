@@ -38,12 +38,18 @@ class HitDetector {
     public mouseDown: boolean;
     public regions: { [name: string]: HitRegion };
 
+    private namespaces: { [name: string]: { [name: string]: HitRegion } };
+    private currentNamespace: string;
+
     constructor(ctx: CanvasRenderingContext2D) {
         this.unnamedRegionsCount = 0;
         this.mouseDown = false;
         this.regions = {};
         this.ctx = ctx;
         this.scale = 1;
+
+        this.currentNamespace = "default";
+        this.namespaces = {};
 
         // use lambdas to have the right context for 'this'
         ctx.canvas.addEventListener("mousedown", (e: MouseEvent) => { this.onMouseDown(e); }, false);

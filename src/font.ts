@@ -22,7 +22,7 @@ class BitmapFont {
             if (rowEscapes == null || rowEscapes.indexOf(row) === -1) {
                 var data = imgCanvas.getImageData(row, 0, 1, this.height).data;
                 for (var i = 0; i < data.length; i++) { if (data[i] != 255) { break; } }
-                if (i === data.length) {  //this row is all white
+                if (i === data.length) {  //this column is all white
                     this.chars[charIdx] = imgCanvas.getImageData(lastCut + 1, 0, row - lastCut - 1, this.height);
                     lastCut = row;
                     charIdx++;
@@ -37,9 +37,14 @@ class BitmapFont {
 
     public drawText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color?: string): void {
         var newPalette: Palette = <Palette>{ foreground: color };
+        var origX = x;
         for (var i = 0; i < text.length; i++) {
             if (text[i] === " ") {
                 x += this.spaceWidth + this.spaceBetweenLetters;
+                continue;
+            } else if (text[i] === "\n") {
+                x = origX;
+                y += this.height + this.spaceWidth;
                 continue;
             }
             var charIdx = this.charMap.indexOf(text[i]);
@@ -60,11 +65,18 @@ class BitmapFont {
         }
     }
 
+    // TODO: consolidate drawText & drawTextRTL into one function
+
     public drawTextRTL(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color?: string): void {
         var newPalette: Palette = <Palette>{ foreground: color };
+        var origX = x;
         for (var i = text.length - 1; i >= 0; i--) {
             if (text[i] === " ") {
                 x -= this.spaceWidth + this.spaceBetweenLetters;
+                continue;
+            } else if (text[i] === "\n") {
+                x = origX;
+                y += this.height + this.spaceWidth;
                 continue;
             }
             var charIdx = this.charMap.indexOf(text[i]);

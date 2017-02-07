@@ -1,25 +1,33 @@
+enum PlayState {
+    STOPPED = 0,
+    PAUSED = 1,
+    PLAYING = 2,
+    FASTFORWARD = 3
+}
+
 class Song {
     channels: Channel[];
+    repeat: boolean;
+
+    playState: PlayState;
     position: number;
     buffer: number;
 
-    repeat: boolean;
-
     fileName: string | null;
-
 
     constructor(channelCount: number = 32) {
         //initialize with default channels
         this.channels = [];
         for (var i = 0; i < channelCount; i++) {
             this.channels.push(new Channel());
-            this.channels[i].wave = Waveform.sine;
+            this.channels[i].wave = Waveform.triangle;
         }
         this.channels[9].drum = true;
         this.channels[25].drum = true;
 
         this.position = 0;
         this.buffer = 1;
+        this.playState = PlayState.STOPPED;
 
         this.repeat = Cookies.get("loop", "true") === "true";
 

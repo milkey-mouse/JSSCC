@@ -14,5 +14,6 @@ type VUMeterDrawObject = ["vuMeter", number, number, number, number, number];
 type WaveformDrawObject = ["waveform", number, number, number, string];
 type WindowDrawObject = ["window", number, number, number, number, string | undefined];
 type BoundsMetadata = ["bounds"|"newBounds", number, number, number, number];
+type Nop = ["nop"];
 
-type DrawObject = ButtonDrawObject | FilledRectDrawObject | ImageDrawObject | LineDrawObject | PbarDrawObject | RTLTextDrawObject | StrokeRectDrawObject | TextDrawObject | TextureDrawObject | PanDrawObject | VUMeterDrawObject | WaveformDrawObject | WindowDrawObject | BoundsMetadata;
+type DrawObject = ButtonDrawObject | FilledRectDrawObject | ImageDrawObject | LineDrawObject | PbarDrawObject | RTLTextDrawObject | StrokeRectDrawObject | TextDrawObject | TextureDrawObject | PanDrawObject | VUMeterDrawObject | WaveformDrawObject | WindowDrawObject | BoundsMetadata | Nop;
