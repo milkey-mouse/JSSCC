@@ -206,23 +206,20 @@ class CanvasRenderer {
         this.ctx.fillRect(x, y, Math.round(w * value), h);
     }
 
-    public drawTextRTL(size: "small" | "medium" | "large", text: string, x: number, y: number, color: string, spaceWidth?: number) {
-        if (spaceWidth === undefined) {
-            this.loader.getFont(size).drawTextRTL(this.ctx, text, x, y, color);
-        } else {
-            this.loader.getFont(size).spaceWidth = spaceWidth;
-            this.loader.getFont(size).drawTextRTL(this.ctx, text, x, y, color);
-            this.loader.getFont(size).spaceWidth = 1;
-        }
-    }
-
     public drawStrokeRect(x: number, y: number, w: number, h: number, color: string) {
         this.ctx.strokeStyle = color;
         this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     }
 
-    public drawText(size: "small" | "medium" | "large", text: string, x: number, y: number, color: string) {
-        this.loader.getFont(size).drawText(this.ctx, text, x, y, color);
+    public drawText(size: "small" | "medium" | "large", text: string, x: number, y: number, color: string, rtl?: boolean, spaceWidth?: number) {
+        var font = this.loader.getFont(size);
+        if (spaceWidth === undefined) {
+            this.loader.getFont(size).drawText(this.ctx, text, x, y, color, rtl);
+        } else {
+            font.spaceWidth = spaceWidth;
+            font.drawText(this.ctx, text, x, y, color, rtl);
+            font.spaceWidth = 1;
+        }
     }
 
     public drawWindow(x: number, y: number, w: number, h: number, title?: string) {

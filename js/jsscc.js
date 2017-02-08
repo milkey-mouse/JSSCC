@@ -171,22 +171,20 @@ var CanvasRenderer = (function () {
         this.ctx.fillStyle = color;
         this.ctx.fillRect(x, y, Math.round(w * value), h);
     };
-    CanvasRenderer.prototype.drawTextRTL = function (size, text, x, y, color, spaceWidth) {
-        if (spaceWidth === undefined) {
-            this.loader.getFont(size).drawTextRTL(this.ctx, text, x, y, color);
-        }
-        else {
-            this.loader.getFont(size).spaceWidth = spaceWidth;
-            this.loader.getFont(size).drawTextRTL(this.ctx, text, x, y, color);
-            this.loader.getFont(size).spaceWidth = 1;
-        }
-    };
     CanvasRenderer.prototype.drawStrokeRect = function (x, y, w, h, color) {
         this.ctx.strokeStyle = color;
         this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     };
-    CanvasRenderer.prototype.drawText = function (size, text, x, y, color) {
-        this.loader.getFont(size).drawText(this.ctx, text, x, y, color);
+    CanvasRenderer.prototype.drawText = function (size, text, x, y, color, rtl, spaceWidth) {
+        var font = this.loader.getFont(size);
+        if (spaceWidth === undefined) {
+            this.loader.getFont(size).drawText(this.ctx, text, x, y, color, rtl);
+        }
+        else {
+            font.spaceWidth = spaceWidth;
+            font.drawText(this.ctx, text, x, y, color, rtl);
+            font.spaceWidth = 1;
+        }
     };
     CanvasRenderer.prototype.drawWindow = function (x, y, w, h, title) {
         // the reason for all this raw ImageData manipulation is to dynamically
@@ -776,12 +774,18 @@ var BitmapFont = (function () {
             console.error("map is different length than char array; char map probably didn't load correctly");
         }
     }
-    BitmapFont.prototype.drawText = function (ctx, text, x, y, color) {
+    BitmapFont.prototype.drawText = function (ctx, text, x, y, color, rtl) {
+        if (rtl === void 0) { rtl = false; }
         var newPalette = { foreground: color };
         var origX = x;
-        for (var i = 0; i < text.length; i++) {
+        for (var i = rtl ? (text.length - 1) : 0; rtl ? (i >= 0) : (i < text.length); rtl ? i-- : i++) {
             if (text[i] === " ") {
-                x += this.spaceWidth + this.spaceBetweenLetters;
+                if (rtl) {
+                    x -= this.spaceWidth + this.spaceBetweenLetters;
+                }
+                else {
+                    x += this.spaceWidth + this.spaceBetweenLetters;
+                }
                 continue;
             }
             else if (text[i] === "\n") {
@@ -789,55 +793,29 @@ var BitmapFont = (function () {
                 y += this.height + this.spaceWidth;
                 continue;
             }
-            var charIdx = this.charMap.indexOf(text[i]);
-            if (charIdx === -1) {
-                console.warn("could not print character '" + text[i] + "' with charmap '" + this.charMap + "'");
-                x += this.spaceWidth + this.spaceBetweenLetters;
-            }
             else {
-                var charImg = this.chars[charIdx];
-                if (color == null) {
-                    ctx.putImageData(charImg, x, y);
+                var charIdx = this.charMap.indexOf(text[i]);
+                if (charIdx === -1 || (rtl && charIdx >= this.chars.length)) {
+                    console.warn("could not print character '" + text[i] + "' with charmap '" + this.charMap + "'");
+                    x += this.spaceWidth + this.spaceBetweenLetters;
                 }
                 else {
-                    var composited = ctx.createImageData(charImg.width, charImg.height);
-                    AssetLoader.composite(composited.data, charImg.data, ctx.getImageData(x, y, charImg.width, charImg.height).data, BitmapFont.fontPalette, newPalette);
-                    ctx.putImageData(composited, x, y);
+                    var charImg = this.chars[charIdx];
+                    if (color == null) {
+                        ctx.putImageData(charImg, rtl ? (x - charImg.width) : x, y);
+                    }
+                    else {
+                        var composited = ctx.createImageData(charImg.width, charImg.height);
+                        AssetLoader.composite(composited.data, charImg.data, ctx.getImageData(rtl ? (x - charImg.width) : x, y, charImg.width, charImg.height).data, BitmapFont.fontPalette, newPalette);
+                        ctx.putImageData(composited, rtl ? (x - charImg.width) : x, y);
+                    }
+                    if (rtl) {
+                        x -= charImg.width + this.spaceBetweenLetters;
+                    }
+                    else {
+                        x += charImg.width + this.spaceBetweenLetters;
+                    }
                 }
-                x += charImg.width + this.spaceBetweenLetters;
-            }
-        }
-    };
-    // TODO: consolidate drawText & drawTextRTL into one function
-    BitmapFont.prototype.drawTextRTL = function (ctx, text, x, y, color) {
-        var newPalette = { foreground: color };
-        var origX = x;
-        for (var i = text.length - 1; i >= 0; i--) {
-            if (text[i] === " ") {
-                x -= this.spaceWidth + this.spaceBetweenLetters;
-                continue;
-            }
-            else if (text[i] === "\n") {
-                x = origX;
-                y += this.height + this.spaceWidth;
-                continue;
-            }
-            var charIdx = this.charMap.indexOf(text[i]);
-            if (charIdx === -1 || charIdx >= this.chars.length) {
-                console.warn("could not print character '" + text[i] + "'");
-                x -= this.spaceWidth + this.spaceBetweenLetters;
-            }
-            else {
-                var charImg = this.chars[charIdx];
-                if (color == null) {
-                    ctx.putImageData(this.chars[charIdx], x - charImg.width, y);
-                }
-                else {
-                    var composited = ctx.createImageData(charImg.width, charImg.height);
-                    AssetLoader.composite(composited.data, charImg.data, ctx.getImageData(x - charImg.width, y, charImg.width, charImg.height).data, BitmapFont.fontPalette, newPalette);
-                    ctx.putImageData(composited, x - charImg.width, y);
-                }
-                x -= charImg.width + this.spaceBetweenLetters;
             }
         }
     };
@@ -1227,6 +1205,7 @@ var AssetLoader = (function () {
                         return;
                     }
                     else {
+                        // TODO: Don't just cut it off, serialize objects after drawGroups as well
                         var lines = baked.substring(0, dgi - 1).split("\n");
                         baked = "";
                         lines.push('    "drawGroups": {');
