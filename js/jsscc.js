@@ -5,7 +5,6 @@ var CanvasRenderer = (function () {
         this.initialized = false;
         this.loadEvents = 2;
         this.scale = 1;
-        this.tempRegions = null;
         this.paletteName = "default";
         this.palette = this.loader.palettes[this.paletteName];
         this.song = new Song();
@@ -25,6 +24,12 @@ var CanvasRenderer = (function () {
                 _this.ctx.fillStyle = _this.palette.foreground;
                 _this.ctx.fillText("Loading...", _this.canvas.width / 2, _this.canvas.height / 2);
                 window.setTimeout(function () {
+                    for (var i = 0; i < _this.song.channels.length; i++) {
+                        _this.initChannelHitbox(i);
+                    }
+                    _this.initPositionHitbox();
+                    _this.initButtons();
+                    _this.initLink();
                     _this.clear();
                     _this.redraw();
                     _this.renderFrame();
@@ -42,10 +47,16 @@ var CanvasRenderer = (function () {
                 _this.ctx.fillStyle = _this.palette.foreground;
                 _this.ctx.fillText("Loading...", _this.canvas.width / 2, _this.canvas.height / 2);
                 window.setTimeout(function () {
+                    for (var i = 0; i < _this.song.channels.length; i++) {
+                        _this.initChannelHitbox(i);
+                    }
+                    _this.initPositionHitbox();
+                    _this.initButtons();
+                    _this.initLink();
                     _this.clear();
                     _this.redraw();
                     _this.renderFrame();
-                }, 0);
+                }, 5);
             }
         };
     }
@@ -65,7 +76,7 @@ var CanvasRenderer = (function () {
                 this.ctx.fillText("Loading...", this.canvas.width / 2, this.canvas.height / 2);
                 // have a frame render with the "Loading..." text before switching
                 window.setTimeout(function () {
-                    if (olddata != null) {
+                    if (olddata !== undefined) {
                         var newdata = new ImageData(olddata.width, olddata.height);
                         AssetLoader.composite(newdata.data, olddata.data, olddata.data, _this.palette, _this.loader.palettes[name]);
                         _this.ctx.putImageData(newdata, 0, 0);
@@ -74,11 +85,11 @@ var CanvasRenderer = (function () {
                     _this.palette = _this.loader.palettes[name];
                     _this.paletteName = name;
                     document.body.style.backgroundColor = _this.palette.background;
-                    if (olddata == null && _this.initialized) {
+                    if (olddata === undefined && _this.initialized) {
                         _this.clear();
                         _this.redraw();
                     }
-                    if (callback != null) {
+                    if (callback !== undefined) {
                         callback();
                     }
                 }, 10);
@@ -101,7 +112,7 @@ var CanvasRenderer = (function () {
         this.canvas.width = 634;
         this.canvas.height = 444;
         var newCtx = this.canvas.getContext("2d");
-        if (newCtx == null) {
+        if (newCtx === null) {
             console.error("couldn't get 2d context for main canvas");
             return;
         }
@@ -113,13 +124,6 @@ var CanvasRenderer = (function () {
         this.initialized = true;
         this.rescale();
         this.clear();
-        // add hit regions for each channel
-        for (var i = 0; i < this.song.channels.length; i++) {
-            this.initChannelHitbox(i);
-        }
-        this.initPositionHitbox();
-        this.initButtons();
-        this.initLink();
     };
     CanvasRenderer.prototype.rescale = function () {
         if (!this.initialized) {
@@ -299,8 +303,8 @@ var CanvasRenderer = (function () {
         var _this = this;
         var x = ((idx % 16) * 36) + 58;
         var y = (Math.floor(idx / 16) * 168) + 49;
-        var region = new HitRegion(x, y, 33, 13);
-        region.onmousedown = function (x, y) {
+        var region = this.autoRegion("channelMute");
+        region.onmousedown.push(function (x, y) {
             _this.song.channels[idx].mute = !_this.song.channels[idx].mute;
             _this.drawChannel(idx, "channelMute");
             _this.song.channels[idx].volume = 0;
@@ -308,12 +312,12 @@ var CanvasRenderer = (function () {
             _this.song.channels[idx].envelope = 0;
             _this.song.channels[idx].output = 0;
             _this.drawChannel(idx, "channelVEN");
-        };
+        });
         this.hitDetector.addHitRegion(region, "chan" + idx);
     };
     CanvasRenderer.prototype.initPositionHitbox = function () {
         var _this = this;
-        var slider = new HitRegion(58, 402, 236, 16);
+        var slider = this.autoRegion("positionSlider");
         slider.cursor = "ew-resize";
         var slideEvent = function (e) {
             window.removeEventListener("mousemove", moveSlider, false);
@@ -323,75 +327,52 @@ var CanvasRenderer = (function () {
             _this.song.position = Math.min(1, Math.max(0, (e.offsetX / _this.scale - 57) / 236));
             _this.drawDGroup("positionSlider");
         };
-        slider.onmousedown = function (x, y) {
+        slider.onmousedown.push(function (x, y) {
             _this.song.position = Math.min(1, Math.max(0, (x - 57) / 236));
             _this.drawDGroup("positionSlider");
             window.addEventListener("mousemove", moveSlider, false);
             window.addEventListener("mouseup", slideEvent, false);
-        };
+        });
         this.hitDetector.addHitRegion(slider, "positionSlider");
     };
     CanvasRenderer.prototype.initButtons = function () {
         var _this = this;
-        var loop = new HitRegion(300, 402, 20, 17);
-        var mouseup = function (e) {
-            _this.drawDGroup("repeat");
-            window.removeEventListener("mouseup", mouseup, false);
-        };
-        loop.onmousedown = function (x, y) {
-            _this.drawDGroup("repeat");
-            window.addEventListener("mouseup", mouseup, false);
-        };
-        loop.onmouseup = function (x, y) {
+        var repeat = this.autoRegion("repeat");
+        repeat.onmouseup.push(function (x, y) {
             _this.song.repeat = !_this.song.repeat;
             Cookies.write("loop", _this.song.repeat ? "true" : "false");
-            _this.drawDGroup("repeat");
-        };
-        this.hitDetector.addHitRegion(loop, "loop");
-        var createRegion = function (x, y, w, h, name, callback) {
-            var r = new HitRegion(x, y, w, h);
-            var el = function (e) {
-                switch (name) {
-                    case "stop":
-                        _this.song.playState = PlayState.STOPPED;
-                        break;
-                    case "play":
-                        _this.framesDrawn = 0;
-                        _this.drawStartTime = performance.now();
-                        _this.song.playState = PlayState.PLAYING;
-                        break;
-                    case "pause":
-                        _this.song.playState = PlayState.PAUSED;
-                        break;
-                }
-                _this.drawDGroup(name + "Button");
-                window.removeEventListener("mouseup", el, false);
-            };
-            r.onmousedown = function () {
-                _this.drawDGroup(name + "Button");
-                if (callback == null || !callback()) {
-                    window.addEventListener("mouseup", el, false);
-                }
-            };
-            _this.hitDetector.addHitRegion(r, name);
-        };
-        createRegion(132, 19, 34, 22, "play");
-        createRegion(172, 19, 34, 22, "fastforward");
-        createRegion(212, 19, 34, 22, "stop");
-        createRegion(252, 19, 34, 22, "pause");
-        createRegion(292, 19, 34, 22, "export");
-        createRegion(332, 19, 34, 22, "config", function () { return _this.openConfig(); });
+        });
+        this.autoRegion("play").onmouseup.push(function (x, y) {
+            _this.framesDrawn = 0;
+            _this.drawStartTime = performance.now();
+            _this.song.playState = PlayState.PLAYING;
+        });
+        this.autoRegion("fastForward").onmouseup.push(function (x, y) {
+            _this.framesDrawn = 0;
+            _this.drawStartTime = performance.now();
+            _this.song.playState = PlayState.FASTFORWARD;
+        });
+        this.autoRegion("stop").onmouseup.push(function (x, y) {
+            _this.song.playState = PlayState.STOPPED;
+        });
+        this.autoRegion("pause").onmouseup.push(function (x, y) {
+            _this.song.playState = PlayState.PAUSED;
+        });
+        this.autoRegion("config", true, function () { _this.openConfig(); });
+        this.autoRegion("export");
     };
     CanvasRenderer.prototype.initLink = function () {
         var _this = this;
-        var link = new HitRegion(164, 435, 183, 10);
-        link.cursor = "pointer";
-        link.onmousedown = function () {
+        var link = this.autoRegion("githubLink", false);
+        link.onmousedown.push(function () {
             window.location.assign("https://github.com/milkey-mouse/JSSCC");
-        };
-        link.onenter = function () { _this.drawDGroup("githubLinkSelected"); };
-        link.onexit = function () { _this.drawDGroup("githubLinkDeselected"); };
-        this.hitDetector.addHitRegion(link, "link");
+        });
+        link.onenter.push(function () {
+            _this.drawDGroup("githubLink");
+        });
+        link.onexit.push(function () {
+            _this.drawDGroup("githubLink");
+        });
     };
     CanvasRenderer.prototype.drawChannel = function (idx, group, checkWindow) {
         var x = ((idx % 16) * 36) + 58;
@@ -582,12 +563,11 @@ var CanvasRenderer = (function () {
     };
     CanvasRenderer.prototype.openConfig = function () {
         this.configOpen = true;
-        this.tempRegions = this.hitDetector.regions;
-        this.hitDetector.regions = {};
+        this.hitDetector.switchNamespace("window");
         this.ctx.fillStyle = "rgba(1, 1, 1, 0.75)";
         var newBG = AssetLoader.hexToRgb(this.palette.background);
         if (newBG === null) {
-            return false;
+            return;
         }
         newBG.r = Math.round(newBG.r * 0.25);
         newBG.g = Math.round(newBG.g * 0.25);
@@ -596,7 +576,6 @@ var CanvasRenderer = (function () {
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         this.initConfig();
         this.drawConfig();
-        return true;
     };
     CanvasRenderer.prototype.initConfig = function () {
         var _this = this;
@@ -604,31 +583,12 @@ var CanvasRenderer = (function () {
         var windowBounds = windowGroup[windowGroup.length - 1].slice(1);
         var width = windowBounds[2];
         var height = windowBounds[3];
-        var close = new HitRegion((this.canvas.width + width) / 2 - 23, (this.canvas.height - height) / 2 + 5, 16, 15);
-        close.onmousedown = function () { _this.closeConfig(); };
+        var windowX = (this.canvas.width - width) / 2;
+        var windowY = (this.canvas.height - height) / 2;
+        var close = new HitRegion((this.canvas.width + width) / 2 - 23, windowY + 5, 16, 15);
+        close.onmousedown.push(function () { _this.closeConfig(); });
         this.hitDetector.addHitRegion(close, "close");
-        var windowX = (this.canvas.width - windowBounds[2]) / 2;
-        var windowY = (this.canvas.height - windowBounds[3]) / 2;
-        var paletteTextBox = new HitRegion(windowX + width * 0.4 - 1, windowY + 33, width * 0.6 - 29, 16);
-        paletteTextBox.onmousedown = function () {
-            _this.drawButton(windowX + width - 28, windowY + 33, 16, 16, true);
-            _this.ctx.putImageData(_this.loader.getImage("dropdown"), 396, 138);
-            window.setTimeout(function () {
-                _this.drawButton(windowX + width - 28, windowY + 33, 16, 16, false);
-                _this.ctx.putImageData(_this.loader.getImage("dropdown"), 395, 137);
-            }, 100);
-        };
-        this.hitDetector.addHitRegion(paletteTextBox, "paletteTB");
-        var paletteButton = new HitRegion(windowX + width - 29, windowY + 33, 16, 16);
-        var mouseUp = function () {
-            _this.drawDGroup("preferencesColorPalette", windowX, windowY);
-            window.removeEventListener("mouseup", mouseUp);
-        };
-        paletteButton.onmousedown = function () {
-            _this.drawDGroup("preferencesColorPalette", windowX, windowY);
-            window.addEventListener("mouseup", mouseUp, false);
-        };
-        this.hitDetector.addHitRegion(paletteButton, "paletteDD");
+        this.autoRegion("preferencesColorPalette", true, undefined, windowX, windowY);
     };
     CanvasRenderer.prototype.drawConfig = function () {
         var windowGroup = this.loader.drawGroups["preferencesWindow"];
@@ -639,53 +599,53 @@ var CanvasRenderer = (function () {
     };
     CanvasRenderer.prototype.closeConfig = function () {
         this.configOpen = false;
-        if (this.tempRegions !== null) {
-            this.hitDetector.regions = this.tempRegions;
-            this.tempRegions = null;
-        }
-        else {
-            console.error("no tempRegions");
-        }
+        this.hitDetector.switchNamespace("default");
         this.redraw();
         document.body.style.backgroundColor = this.palette.background;
         // the next update for the mouseovers won't run until after this
         // stuff is drawn, so we have to set the mouseover state manually
-        this.hitDetector.regions["config"].over = false;
-        this.drawDGroup("configButton");
+        this.hitDetector.onMouseMove({ offsetX: 0, offsetY: 0 });
+        this.drawDGroup("config");
     };
     CanvasRenderer.prototype.rebakeBounds = function (manifestURL) {
         // channelButton won't render unless the channel is a drum channel
+        // it doesn't matter that we're overwriting this as rebakeBounds
+        // will redirect you to view the JSON anyway
         this.chan.drum = true;
         this.loader.rebakeBounds(this, manifestURL);
     };
-    CanvasRenderer.prototype.perfTest = function (lengthMS) {
-        if (lengthMS === void 0) { lengthMS = 5000; }
-        console.log("running performance test for " + lengthMS / 1000 + " seconds");
-        var i = 0;
-        var t0 = performance.now();
-        var t1 = t0;
-        for (var frames = 0; (t1 - t0) < lengthMS; frames++) {
-            // redraw everything that would be redrawn in a standard frame:
-            // channels
-            for (i = 0; i < 32; i++) {
-                this.drawChannel(i, "channelVEN");
-                //this.drawChannel(i, "channelFrequency");
-                this.drawChannel(i, "channelPoly");
-            }
-            // these only need to be drawn about once a second normally
-            if (frames % 30 == 0) {
-                for (i = 0; i < 32; i++) {
-                    this.drawChannel(i, "channelFrequency");
-                }
-                this.drawDGroup("positionSlider");
-                this.drawDGroup("buffer");
-            }
-            t1 = performance.now();
+    CanvasRenderer.prototype.autoRegion = function (name, autoRedraw, callback, offsetX, offsetY) {
+        var _this = this;
+        if (autoRedraw === void 0) { autoRedraw = true; }
+        var group = this.loader.drawGroups[name];
+        if (group === undefined) {
+            console.error("no group named " + name);
         }
-        console.log("perf test completed");
-        console.log("milliseconds taken: " + (t1 - t0));
-        console.log("frames drawn: " + frames);
-        console.log("average fps: " + frames / (t1 - t0) * 1000);
+        else if (group.length === 0) {
+            console.error("zero length DGroup");
+        }
+        var bounds = group[group.length - 1];
+        if (bounds === undefined || bounds.length < 5 || bounds[0] !== "bounds") {
+            console.error("incorrect bounds list ", bounds);
+        }
+        var region = new HitRegion(bounds[1], bounds[2], bounds[3], bounds[4]);
+        if (autoRedraw) {
+            var onMouseUp = function (e) {
+                _this.drawDGroup(name, offsetX, offsetY);
+                window.removeEventListener("mouseup", onMouseUp, false);
+            };
+            region.onmousedown.push(function (x, y) {
+                _this.drawDGroup(name, offsetX, offsetY);
+                if (callback !== undefined) {
+                    callback();
+                }
+                else {
+                    window.addEventListener("mouseup", onMouseUp, false);
+                }
+            });
+        }
+        this.hitDetector.addHitRegion(region, name);
+        return region;
     };
     CanvasRenderer.prototype.renderFrame = function () {
         var _this = this;
@@ -702,8 +662,7 @@ var CanvasRenderer = (function () {
                 //this.drawChannel(i, "channelFrequency");
                 this.drawChannel(i, "channelPoly");
             }
-            this.framesDrawn++;
-            if (this.framesDrawn % 30 === 0) {
+            if (this.framesDrawn++ % 30 === 0) {
                 console.log((this.framesDrawn / (performance.now() - this.drawStartTime) * 1000) + " fps");
             }
         }
@@ -830,27 +789,26 @@ var HitRegion = (function () {
         this.h = height;
         this.over = false;
         this.cursor = null;
-        this.onmousedown = null;
-        this.onmouseup = null;
-        this.onenter = null;
-        this.onexit = null;
+        this.onmousedown = [];
+        this.onmouseup = [];
+        this.onenter = [];
+        this.onexit = [];
     }
     return HitRegion;
 }());
 var HitDetector = (function () {
     function HitDetector(ctx) {
         var _this = this;
-        this.unnamedRegionsCount = 0;
         this.mouseDown = false;
-        this.regions = {};
         this.ctx = ctx;
         this.scale = 1;
-        this.currentNamespace = "default";
-        this.namespaces = {};
+        this.namespace = "default";
+        this.regions = {};
+        this.regions[this.namespace] = {};
         // use lambdas to have the right context for 'this'
-        ctx.canvas.addEventListener("mousedown", function (e) { _this.onMouseDown(e); }, false);
-        ctx.canvas.addEventListener("mousemove", function (e) { _this.onMouseMove(e); }, false);
-        ctx.canvas.addEventListener("mouseup", function (e) { _this.onMouseUp(e); }, false);
+        this.ctx.canvas.addEventListener("mousedown", function (e) { _this.onMouseDown(e); }, false);
+        this.ctx.canvas.addEventListener("mousemove", function (e) { _this.onMouseMove(e); }, false);
+        this.ctx.canvas.addEventListener("mouseup", function (e) { _this.onMouseUp(e); }, false);
     }
     HitDetector.prototype.onMouseDown = function (event) {
         if (event.button !== 0) {
@@ -859,12 +817,14 @@ var HitDetector = (function () {
         var mouseX = event.offsetX / this.scale;
         var mouseY = event.offsetY / this.scale;
         this.mouseDown = true;
-        for (var regionName in this.regions) {
-            var r = this.regions[regionName];
-            if (r != null && r.onmousedown !== null &&
+        for (var regionName in this.regions[this.namespace]) {
+            var r = this.regions[this.namespace][regionName];
+            if (r !== undefined && r.onmousedown.length > 0 &&
                 mouseY >= r.y && mouseY <= r.y + r.h &&
                 mouseX >= r.x && mouseX <= r.x + r.w) {
-                r.onmousedown(mouseX, mouseY);
+                for (var i = 0; i < r.onmousedown.length; i++) {
+                    r.onmousedown[i](mouseX, mouseY);
+                }
             }
         }
     };
@@ -875,26 +835,25 @@ var HitDetector = (function () {
         var mouseX = event.offsetX / this.scale;
         var mouseY = event.offsetY / this.scale;
         this.mouseDown = false;
-        for (var regionName in this.regions) {
-            var r = this.regions[regionName];
-            if (r != null && r.onmouseup !== null &&
+        for (var regionName in this.regions[this.namespace]) {
+            var r = this.regions[this.namespace][regionName];
+            if (r !== undefined && r.onmouseup.length > 0 &&
                 mouseY >= r.y && mouseY <= r.y + r.h &&
                 mouseX >= r.x && mouseX <= r.x + r.w) {
-                r.onmouseup(mouseX, mouseY);
+                for (var i = 0; i < r.onmouseup.length; i++) {
+                    r.onmouseup[i](mouseX, mouseY);
+                }
             }
         }
     };
     HitDetector.prototype.onMouseMove = function (event) {
-        if (event.button !== 0) {
-            return;
-        }
         var mouseX = event.offsetX / this.scale;
         var mouseY = event.offsetY / this.scale;
         this.ctx.canvas.style.cursor = "auto";
-        for (var regionName in this.regions) {
-            var r = this.regions[regionName];
-            if (r == null) {
-                break;
+        for (var regionName in this.regions[this.namespace]) {
+            var r = this.regions[this.namespace][regionName];
+            if (r === undefined) {
+                continue;
             }
             var over = mouseY >= r.y && mouseY <= r.y + r.h &&
                 mouseX >= r.x && mouseX <= r.x + r.w;
@@ -903,31 +862,48 @@ var HitDetector = (function () {
             }
             if (over === true && r.over === false) {
                 r.over = true;
-                if (r.onenter !== null) {
-                    r.onenter();
+                for (var i = 0; i < r.onenter.length; i++) {
+                    r.onenter[i]();
                 }
             }
             else if (over === false && r.over === true) {
                 r.over = false;
-                if (r.onexit !== null) {
-                    r.onexit();
+                for (var i = 0; i < r.onexit.length; i++) {
+                    r.onexit[i]();
                 }
             }
         }
     };
-    HitDetector.prototype.addHitRegion = function (r, key) {
-        if (key == null) {
-            key = "region" + this.unnamedRegionsCount;
-            this.unnamedRegionsCount++;
+    HitDetector.prototype.switchNamespace = function (ns) {
+        // i wish JavaScript had defaultdicts
+        if (this.regions[ns] === undefined) {
+            this.regions[ns] = {};
         }
-        this.regions[key] = r;
+        this.namespace = ns;
+    };
+    HitDetector.prototype.isOver = function (name) {
+        return this.regions[this.namespace][name] !== undefined && this.regions[this.namespace][name].over;
+    };
+    HitDetector.prototype.isDown = function (name) {
+        return this.mouseDown && this.isOver(name);
+    };
+    HitDetector.prototype.addHitRegion = function (r, key) {
+        if (key === void 0) { key = "region"; }
+        if (this.regions[this.namespace][key] !== undefined) {
+            var i = 0;
+            while (this.regions[this.namespace][key + i] !== undefined) {
+                i++;
+            }
+            key = key + i;
+        }
+        this.regions[this.namespace][key] = r;
         return key;
     };
     HitDetector.prototype.removeHitRegion = function (key) {
-        delete this.regions[key];
+        delete this.regions[this.namespace][key];
     };
     HitDetector.prototype.clearHitRegions = function () {
-        this.regions = {};
+        this.regions[this.namespace] = {};
     };
     return HitDetector;
 }());
@@ -1010,17 +986,6 @@ var AssetLoader = (function () {
             if (xhr.readyState === 4) {
                 if (xhr.status === 200) {
                     var resp = JSON.parse(xhr.responseText);
-                    if (resp.images !== undefined) {
-                        _this.unloadedAssets += resp.images.length;
-                    }
-                    if (resp.fonts !== undefined) {
-                        _this.unloadedAssets += resp.fonts.length;
-                    }
-                    if (resp.drawGroups !== undefined) {
-                        for (var p in resp.drawGroups) {
-                            _this.drawGroups[p] = resp.drawGroups[p];
-                        }
-                    }
                     if (resp.palettes !== undefined) {
                         for (var p in resp.palettes) {
                             _this.palettes[p] = resp.palettes[p];
@@ -1028,10 +993,17 @@ var AssetLoader = (function () {
                         }
                     }
                     if (resp.images !== undefined) {
+                        _this.unloadedAssets += resp.images.length;
                         resp.images.forEach(function (img) { _this.loadImage(img, true); }, _this);
                     }
                     if (resp.fonts !== undefined) {
+                        _this.unloadedAssets += resp.fonts.length;
                         resp.fonts.forEach(_this.loadFont, _this);
+                    }
+                    if (resp.drawGroups !== undefined) {
+                        for (var p in resp.drawGroups) {
+                            _this.drawGroups[p] = resp.drawGroups[p];
+                        }
                     }
                 }
                 else {
@@ -1141,7 +1113,7 @@ var AssetLoader = (function () {
         }
         this.loadImage(font.path, false, false, function (name) {
             if (_this.tempCanvas == null) {
-                console.error("tempCanvas is null right after writing; wut?!");
+                console.error("tempCanvas is null right after writing");
                 return;
             }
             _this.fonts[name] = new BitmapFont(_this.tempCanvas, font.map, font.rowEscapes);
@@ -1199,81 +1171,72 @@ var AssetLoader = (function () {
                         return;
                     }
                     var baked = JSON.stringify(json, function (k, v) { return k === "drawGroups" ? {} : v; }, 4);
-                    var dgi = baked.lastIndexOf('    "drawGroups": {}');
-                    if (dgi === -1) {
-                        console.error("couldn't find replaceable string in stringified manifest JSON");
-                        return;
-                    }
-                    else {
-                        // TODO: Don't just cut it off, serialize objects after drawGroups as well
-                        var lines = baked.substring(0, dgi - 1).split("\n");
-                        baked = "";
-                        lines.push('    "drawGroups": {');
-                        for (var gn in json.drawGroups) {
-                            lines.push("        " + JSON.stringify(gn) + ": [");
-                            var group = json.drawGroups[gn];
-                            _this.drawGroups[gn] = group;
-                            // actually calculate the bounds here
-                            cr.ctx.clearRect(0, 0, cr.canvas.width, cr.canvas.height);
-                            cr.drawDGroup(gn);
-                            var xMin = null;
-                            var xMax = null;
-                            var yMin = null;
-                            var yMax = null;
-                            var id = cr.ctx.getImageData(0, 0, cr.canvas.width, cr.canvas.height);
-                            for (var y = 0; y < id.height; y++) {
-                                for (var x = 0; x < id.width; x++) {
-                                    var pos = ((y * id.width) + x) * 4;
-                                    if (id.data[pos] != 0 ||
-                                        id.data[pos + 1] != 0 ||
-                                        id.data[pos + 2] != 0 ||
-                                        id.data[pos + 3] != 0) {
-                                        if (xMin === null || xMax === null || yMin === null || yMax === null) {
-                                            xMin = x;
-                                            xMax = x;
-                                            yMin = y;
-                                            yMax = y;
-                                        }
-                                        else {
-                                            xMin = Math.min(xMin, x);
-                                            xMax = Math.max(xMax, x);
-                                            yMin = Math.min(yMin, y);
-                                            yMax = Math.max(yMax, y);
-                                        }
+                    var lines = [baked.substring(0, baked.indexOf('    "drawGroups": {}') + 19)];
+                    for (var gn in json.drawGroups) {
+                        lines.push("        " + JSON.stringify(gn) + ": [");
+                        var group = json.drawGroups[gn];
+                        _this.drawGroups[gn] = group;
+                        // actually calculate the bounds here
+                        cr.ctx.clearRect(0, 0, cr.canvas.width, cr.canvas.height);
+                        cr.drawDGroup(gn);
+                        var xMin = null;
+                        var xMax = null;
+                        var yMin = null;
+                        var yMax = null;
+                        var id = cr.ctx.getImageData(0, 0, cr.canvas.width, cr.canvas.height);
+                        for (var y = 0; y < id.height; y++) {
+                            for (var x = 0; x < id.width; x++) {
+                                var pos = ((y * id.width) + x) * 4;
+                                if (id.data[pos] != 0 ||
+                                    id.data[pos + 1] != 0 ||
+                                    id.data[pos + 2] != 0 ||
+                                    id.data[pos + 3] != 0) {
+                                    if (xMin === null || xMax === null || yMin === null || yMax === null) {
+                                        xMin = x;
+                                        xMax = x;
+                                        yMin = y;
+                                        yMax = y;
+                                    }
+                                    else {
+                                        xMin = Math.min(xMin, x);
+                                        xMax = Math.max(xMax, x);
+                                        yMin = Math.min(yMin, y);
+                                        yMax = Math.max(yMax, y);
                                     }
                                 }
                             }
-                            if (xMin === null || xMax === null || yMin === null || yMax === null) {
-                                console.warn("nothing drawn; can't do bounds check for '" + gn + "'");
-                            }
-                            else {
-                                group.push(["newBounds", xMin, yMin, xMax - xMin + 1, yMax - yMin + 1]);
-                            }
-                            // start exporting JSON again
-                            for (var y = 0; y < group.length; y++) {
-                                if (group[y][0] === "bounds") {
-                                    if (y === group.length - 1) {
-                                        var lastLine = lines[lines.length - 1];
-                                        lines[lines.length - 1] = lastLine.substring(0, lastLine.length - 1);
-                                    }
-                                    continue;
-                                }
-                                var stringified = [];
-                                for (var x = 0; x < group[y].length; x++) {
-                                    stringified.push(JSON.stringify(group[y][x]));
-                                }
-                                if (y === group.length - 1 && stringified[0] === '"newBounds"') {
-                                    stringified[0] = '"bounds"';
-                                }
-                                lines.push("            [" + stringified.join(", ") + (y === group.length - 1 ? "]" : "],"));
-                            }
-                            lines.push("        ],");
                         }
-                        lines.pop();
-                        lines.push("        ]\n    }\n}");
-                        // pop open the final JSON in the current tab
-                        window.location.assign("data:application/json;base64," + btoa(lines.join("\n")));
+                        if (xMin === null || xMax === null || yMin === null || yMax === null) {
+                            console.warn("nothing drawn; can't do bounds check for '" + gn + "'");
+                        }
+                        else {
+                            group.push(["newBounds", xMin, yMin, xMax - xMin + 1, yMax - yMin + 1]);
+                        }
+                        // start exporting JSON again
+                        for (var y = 0; y < group.length; y++) {
+                            if (group[y][0] === "bounds") {
+                                if (y === group.length - 1) {
+                                    var lastLine = lines[lines.length - 1];
+                                    lines[lines.length - 1] = lastLine.substring(0, lastLine.length - 1);
+                                }
+                                continue;
+                            }
+                            var stringified = [];
+                            for (var x = 0; x < group[y].length; x++) {
+                                stringified.push(JSON.stringify(group[y][x]));
+                            }
+                            if (y === group.length - 1 && stringified[0] === '"newBounds"') {
+                                stringified[0] = '"bounds"';
+                            }
+                            lines.push("            [" + stringified.join(", ") + (y === group.length - 1 ? "]" : "],"));
+                        }
+                        lines.push("        ],");
                     }
+                    lines.pop();
+                    lines.push("        ]");
+                    // pop open the final JSON in the current tab
+                    lines.push("    " + baked.substring(baked.indexOf('    "drawGroups": {}') + 19));
+                    window.location.assign("data:application/json;base64," + btoa(lines.join("\n")));
                 }
                 else {
                     console.error("HTTP request for asset manifest failed with code " + xhr.status);

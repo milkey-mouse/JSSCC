@@ -58,7 +58,7 @@
         "images/xg.png",
         "icons/config.png",
         "icons/export.png",
-        "icons/fastforward.png",
+        "icons/fastForward.png",
         "icons/pause.png",
         "icons/play.png",
         "icons/stop.png",
@@ -170,7 +170,7 @@
         ],
         "preferencesColorPalette": [
             ["button", 80, 33, 92, 16, true],
-            ["button", 172, 33, 16, 16, "$this.configOpen && this.hitDetector.regions['paletteDD'].over && this.hitDetector.mouseDown"],
+            ["button", 172, 33, 16, 16, "$this.hitDetector.isDown('preferencesColorPalette')"],
             ["image", "dropdown", 178, 40],
             ["text", "large", "$this.paletteName", 84, 35, "&white"],
             ["bounds", 80, 33, 109, 17]
@@ -283,49 +283,45 @@
             ["bounds", 58, 421, 161, 10]
         ],
         "repeat": [
-            ["button", 300, 402, 20, 16, "$!this.configOpen && this.hitDetector.regions['loop'].over && this.hitDetector.mouseDown"],
+            ["button", 300, 402, 20, 16, "$this.hitDetector.isDown('repeat')"],
             ["image", "$this.song.repeat ? 'repeat' : 'noRepeat'", 304, 405],
             ["bounds", 300, 402, 21, 17]
         ],
-        "playButton": [
-            ["button", 132, 19, 34, 21, "$!this.configOpen && this.hitDetector.regions['play'].over && this.hitDetector.mouseDown"],
+        "play": [
+            ["button", 132, 19, 34, 21, "$this.hitDetector.isDown('play')"],
             ["image", "play", 143, 23],
             ["bounds", 132, 19, 35, 22]
         ],
-        "fastforwardButton": [
-            ["button", 172, 19, 34, 21, "$!this.configOpen && this.hitDetector.regions['fastforward'].over && this.hitDetector.mouseDown"],
-            ["image", "fastforward", 180, 22],
+        "fastForward": [
+            ["button", 172, 19, 34, 21, "$this.hitDetector.isDown('fastForward')"],
+            ["image", "fastForward", 180, 22],
             ["bounds", 172, 19, 35, 22]
         ],
-        "stopButton": [
-            ["button", 212, 19, 34, 21, "$!this.configOpen && this.hitDetector.regions['stop'].over && this.hitDetector.mouseDown"],
+        "stop": [
+            ["button", 212, 19, 34, 21, "$this.hitDetector.isDown('stop')"],
             ["image", "stop", 222, 23],
             ["bounds", 212, 19, 35, 22]
         ],
-        "pauseButton": [
-            ["button", 252, 19, 34, 21, "$!this.configOpen && this.hitDetector.regions['pause'].over && this.hitDetector.mouseDown"],
+        "pause": [
+            ["button", 252, 19, 34, 21, "$this.hitDetector.isDown('pause')"],
             ["image", "pause", 264, 23],
             ["bounds", 252, 19, 35, 22]
         ],
-        "exportButton": [
-            ["button", 292, 19, 34, 21, "$!this.configOpen && this.hitDetector.regions['export'].over && this.hitDetector.mouseDown"],
+        "export": [
+            ["button", 292, 19, 34, 21, "$this.hitDetector.isDown('export')"],
             ["image", "export", 295, 22],
             ["bounds", 292, 19, 35, 22]
         ],
-        "configButton": [
-            ["button", 332, 19, 34, 21, "$!this.configOpen && this.hitDetector.regions['config'].over && this.hitDetector.mouseDown"],
+        "config": [
+            ["button", 332, 19, 34, 21, "$this.configOpen || this.hitDetector.isDown('config')"],
             ["image", "config", 342, 22],
             ["bounds", 332, 19, 35, 22]
         ],
-        "githubLinkSelected": [
-            ["text", "medium", "This project is open source: https://github.com/milkey-mouse/JSSCC", 44, 435, "&dark"],
-            ["line", 164, 443, 347, 443, "&dark"],
-            ["bounds", 44, 435, 304, 9]
-        ],
-        "githubLinkDeselected": [
+        "githubLink": [
             ["filledRect", 44, 435, 310, 10, "&background"],
             ["text", "medium", "This project is open source: https://github.com/milkey-mouse/JSSCC", 44, 435, "&dark"],
-            ["bounds", 44, 435, 310, 9]
+            ["$this.hitDetector.isOver('githubLink') ? 'line' : 'nop'", 164, 443, 347, 443, "&dark"],
+            ["bounds", 44, 435, 304, 9]
         ]
     }
 }

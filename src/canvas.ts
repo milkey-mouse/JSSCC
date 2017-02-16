@@ -2,8 +2,6 @@ class CanvasRenderer {
     ctx: CanvasRenderingContext2D;
     canvas: HTMLCanvasElement;
 
-    tempRegions: { [name: string]: HitRegion } | null;
-
     loader: AssetLoader;
     hitDetector: HitDetector;
 
@@ -31,8 +29,6 @@ class CanvasRenderer {
         this.loadEvents = 2;
         this.scale = 1;
 
-        this.tempRegions = null;
-
         this.paletteName = "default";
         this.palette = this.loader.palettes[this.paletteName];
 
@@ -57,6 +53,14 @@ class CanvasRenderer {
                 this.ctx.fillStyle = this.palette.foreground;
                 this.ctx.fillText("Loading...", this.canvas.width / 2, this.canvas.height / 2);
                 window.setTimeout(() => {
+                    for (var i = 0; i < this.song.channels.length; i++) {
+                        this.initChannelHitbox(i);
+                    }
+
+                    this.initPositionHitbox();
+                    this.initButtons();
+                    this.initLink();
+
                     this.clear();
                     this.redraw();
                     this.renderFrame();
@@ -74,10 +78,18 @@ class CanvasRenderer {
                 this.ctx.fillStyle = this.palette.foreground;
                 this.ctx.fillText("Loading...", this.canvas.width / 2, this.canvas.height / 2);
                 window.setTimeout(() => {
+                    for (var i = 0; i < this.song.channels.length; i++) {
+                        this.initChannelHitbox(i);
+                    }
+
+                    this.initPositionHitbox();
+                    this.initButtons();
+                    this.initLink();
+
                     this.clear();
                     this.redraw();
                     this.renderFrame();
-                }, 0);
+                }, 5);
             }
         };
     }
@@ -95,7 +107,7 @@ class CanvasRenderer {
                 this.ctx.fillText("Loading...", this.canvas.width / 2, this.canvas.height / 2);
                 // have a frame render with the "Loading..." text before switching
                 window.setTimeout(() => {
-                    if (olddata != null) {
+                    if (olddata !== undefined) {
                         let newdata = new ImageData(olddata.width, olddata.height);
                         AssetLoader.composite(newdata.data, olddata.data, olddata.data, this.palette, this.loader.palettes[name]);
                         this.ctx.putImageData(newdata, 0, 0);
@@ -104,11 +116,11 @@ class CanvasRenderer {
                     this.palette = this.loader.palettes[name];
                     this.paletteName = name;
                     document.body.style.backgroundColor = this.palette.background;
-                    if (olddata == null && this.initialized) {
+                    if (olddata === undefined && this.initialized) {
                         this.clear();
                         this.redraw();
                     }
-                    if (callback != null) {
+                    if (callback !== undefined) {
                         callback();
                     }
                 }, 10);
@@ -130,7 +142,7 @@ class CanvasRenderer {
         this.canvas.height = 444;
 
         var newCtx = this.canvas.getContext("2d");
-        if (newCtx == null) {
+        if (newCtx === null) {
             console.error("couldn't get 2d context for main canvas");
             return;
         }
@@ -144,14 +156,6 @@ class CanvasRenderer {
         this.initialized = true;
         this.rescale();
         this.clear();
-
-        // add hit regions for each channel
-        for (var i = 0; i < this.song.channels.length; i++) {
-            this.initChannelHitbox(i);
-        }
-        this.initPositionHitbox();
-        this.initButtons();
-        this.initLink();
     }
 
     public rescale(): void {
@@ -343,8 +347,8 @@ class CanvasRenderer {
         var x = ((idx % 16) * 36) + 58;
         var y = (Math.floor(idx / 16) * 168) + 49;
 
-        var region = new HitRegion(x, y, 33, 13);
-        region.onmousedown = (x: number, y: number) => {
+        var region = this.autoRegion("channelMute");
+        region.onmousedown.push((x: number, y: number) => {
             this.song.channels[idx].mute = !this.song.channels[idx].mute;
             this.drawChannel(idx, "channelMute");
             this.song.channels[idx].volume = 0;
@@ -352,12 +356,12 @@ class CanvasRenderer {
             this.song.channels[idx].envelope = 0;
             this.song.channels[idx].output = 0;
             this.drawChannel(idx, "channelVEN");
-        };
+        });
         this.hitDetector.addHitRegion(region, "chan" + idx);
     }
 
     public initPositionHitbox(): void {
-        var slider = new HitRegion(58, 402, 236, 16);
+        var slider = this.autoRegion("positionSlider");
         slider.cursor = "ew-resize";
         var slideEvent = (e: MouseEvent) => {
             window.removeEventListener("mousemove", moveSlider, false);
@@ -367,77 +371,53 @@ class CanvasRenderer {
             this.song.position = Math.min(1, Math.max(0, (e.offsetX / this.scale - 57) / 236));
             this.drawDGroup("positionSlider");
         };
-        slider.onmousedown = (x: number, y: number) => {
+        slider.onmousedown.push((x: number, y: number) => {
             this.song.position = Math.min(1, Math.max(0, (x - 57) / 236));
             this.drawDGroup("positionSlider");
             window.addEventListener("mousemove", moveSlider, false);
             window.addEventListener("mouseup", slideEvent, false);
-        };
+        });
         this.hitDetector.addHitRegion(slider, "positionSlider");
     }
 
     public initButtons(): void {
-        var loop = new HitRegion(300, 402, 20, 17);
-        var mouseup = <EventListener>(e: Event) => {
-            this.drawDGroup("repeat");
-            window.removeEventListener("mouseup", mouseup, false);
-        };
-        loop.onmousedown = (x: number, y: number) => {
-            this.drawDGroup("repeat");
-            window.addEventListener("mouseup", mouseup, false);
-        };
-        loop.onmouseup = (x: number, y: number) => {
+        var repeat = this.autoRegion("repeat");
+        repeat.onmouseup.push((x: number, y: number) => {
             this.song.repeat = !this.song.repeat;
             Cookies.write("loop", this.song.repeat ? "true" : "false");
-            this.drawDGroup("repeat");
-        };
-        this.hitDetector.addHitRegion(loop, "loop");
+        });
 
-        var createRegion = (x: number, y: number, w: number, h: number, name: string, callback?: () => boolean) => {
-            var r = new HitRegion(x, y, w, h);
-            var el = (e: MouseEvent) => {
-                switch (name) {
-                    case "stop":
-                        this.song.playState = PlayState.STOPPED;
-                        break;
-                    case "play":
-                        this.framesDrawn = 0;
-                        this.drawStartTime = performance.now();
-                        this.song.playState = PlayState.PLAYING;
-                        break;
-                    case "pause":
-                        this.song.playState = PlayState.PAUSED;
-                        break;
-                }
-                this.drawDGroup(name + "Button");
-                window.removeEventListener("mouseup", el, false);
-            };
-            r.onmousedown = () => {
-                this.drawDGroup(name + "Button");
-                if (callback == null || !callback()) {
-                    window.addEventListener("mouseup", el, false);
-                }
-            };
-            this.hitDetector.addHitRegion(r, name);
-        }
-
-        createRegion(132, 19, 34, 22, "play");
-        createRegion(172, 19, 34, 22, "fastforward");
-        createRegion(212, 19, 34, 22, "stop");
-        createRegion(252, 19, 34, 22, "pause");
-        createRegion(292, 19, 34, 22, "export");
-        createRegion(332, 19, 34, 22, "config", () => { return this.openConfig(); });
+        this.autoRegion("play").onmouseup.push((x: number, y: number) => {
+            this.framesDrawn = 0;
+            this.drawStartTime = performance.now();
+            this.song.playState = PlayState.PLAYING;
+        });
+        this.autoRegion("fastForward").onmouseup.push((x: number, y: number) => {
+            this.framesDrawn = 0;
+            this.drawStartTime = performance.now();
+            this.song.playState = PlayState.FASTFORWARD;
+        });
+        this.autoRegion("stop").onmouseup.push((x: number, y: number) => {
+            this.song.playState = PlayState.STOPPED;
+        });
+        this.autoRegion("pause").onmouseup.push((x: number, y: number) => {
+            this.song.playState = PlayState.PAUSED;
+        });
+        this.autoRegion("config", true, () => { this.openConfig(); });
+        this.autoRegion("export");
     }
 
     public initLink(): void {
-        var link = new HitRegion(164, 435, 183, 10);
-        link.cursor = "pointer";
-        link.onmousedown = () => {
+        var link = this.autoRegion("githubLink", false);
+        link.onmousedown.push(() => {
             window.location.assign("https://github.com/milkey-mouse/JSSCC");
-        }
-        link.onenter = () => { this.drawDGroup("githubLinkSelected"); };
-        link.onexit = () => { this.drawDGroup("githubLinkDeselected") };
-        this.hitDetector.addHitRegion(link, "link");
+        });
+        link.onenter.push(() => {
+            this.drawDGroup("githubLink");
+        });
+        link.onexit.push(() => {
+            this.drawDGroup("githubLink");
+        });
     }
 
     public drawChannel(idx: number, group?: string, checkWindow?: boolean): void {
@@ -635,13 +615,12 @@ class CanvasRenderer {
         }
     }
 
-    public openConfig(): boolean {
+    public openConfig() {
         this.configOpen = true;
-        this.tempRegions = this.hitDetector.regions;
-        this.hitDetector.regions = {};
+        this.hitDetector.switchNamespace("window");
         this.ctx.fillStyle = "rgba(1, 1, 1, 0.75)";
         var newBG = AssetLoader.hexToRgb(this.palette.background);
-        if (newBG === null) { return false; }
+        if (newBG === null) { return; }
         newBG.r = Math.round(newBG.r * 0.25);
         newBG.g = Math.round(newBG.g * 0.25);
         newBG.b = Math.round(newBG.b * 0.25);
@@ -650,7 +629,6 @@ class CanvasRenderer {
 
         this.initConfig();
         this.drawConfig();
-        return true;
     }
 
     public initConfig(): void {
@@ -659,34 +637,14 @@ class CanvasRenderer {
         var width = windowBounds[2];
         var height = windowBounds[3];
 
-        var close = new HitRegion((this.canvas.width + width) / 2 - 23, (this.canvas.height - height) / 2 + 5, 16, 15);
-        close.onmousedown = () => { this.closeConfig(); };
+        var windowX = (this.canvas.width - width) / 2;
+        var windowY = (this.canvas.height - height) / 2;
+
+        var close = new HitRegion((this.canvas.width + width) / 2 - 23, windowY + 5, 16, 15);
+        close.onmousedown.push(() => { this.closeConfig(); });
         this.hitDetector.addHitRegion(close, "close");
 
-        var windowX = (this.canvas.width - windowBounds[2]) / 2;
-        var windowY = (this.canvas.height - windowBounds[3]) / 2;
-
-        var paletteTextBox = new HitRegion(windowX + width * 0.4 - 1, windowY + 33, width * 0.6 - 29, 16);
-        paletteTextBox.onmousedown = () => {
-            this.drawButton(windowX + width - 28, windowY + 33, 16, 16, true);
-            this.ctx.putImageData(this.loader.getImage("dropdown"), 396, 138);
-            window.setTimeout(() => {
-                this.drawButton(windowX + width - 28, windowY + 33, 16, 16, false);
-                this.ctx.putImageData(this.loader.getImage("dropdown"), 395, 137);
-            }, 100);
-        };
-        this.hitDetector.addHitRegion(paletteTextBox, "paletteTB");
-
-        var paletteButton = new HitRegion(windowX + width - 29, windowY + 33, 16, 16);
-        var mouseUp = () => {
-            this.drawDGroup("preferencesColorPalette", windowX, windowY);
-            window.removeEventListener("mouseup", mouseUp);
-        };
-        paletteButton.onmousedown = () => {
-            this.drawDGroup("preferencesColorPalette", windowX, windowY);
-            window.addEventListener("mouseup", mouseUp, false);
-        };
-        this.hitDetector.addHitRegion(paletteButton, "paletteDD");
+        this.autoRegion("preferencesColorPalette", true, undefined, windowX, windowY);
     }
 
     public drawConfig(): void {
@@ -700,57 +658,52 @@ class CanvasRenderer {
     public closeConfig(): void {
         this.configOpen = false;
 
-        if (this.tempRegions !== null) {
-            this.hitDetector.regions = this.tempRegions;
-            this.tempRegions = null;
-        } else {
-            console.error("no tempRegions");
-        }
+        this.hitDetector.switchNamespace("default");
         this.redraw();
         document.body.style.backgroundColor = this.palette.background;
 
         // the next update for the mouseovers won't run until after this
         // stuff is drawn, so we have to set the mouseover state manually
-        this.hitDetector.regions["config"].over = false;
-        this.drawDGroup("configButton");
+        this.hitDetector.onMouseMove(<MouseEvent>{ offsetX: 0, offsetY: 0 });
+        this.drawDGroup("config");
     }
 
     public rebakeBounds(manifestURL?: string) {
         // channelButton won't render unless the channel is a drum channel
+        // it doesn't matter that we're overwriting this as rebakeBounds
+        // will redirect you to view the JSON anyway
         this.chan.drum = true;
         this.loader.rebakeBounds(this, manifestURL);
     }
 
-    public perfTest(lengthMS: number = 5000) {
-        console.log("running performance test for " + lengthMS / 1000 + " seconds");
-        var i = 0;
-        var t0 = performance.now();
-        var t1 = t0;
-        for (var frames = 0; (t1 - t0) < lengthMS; frames++) {
-            // redraw everything that would be redrawn in a standard frame:
-
-            // channels
-            for (i = 0; i < 32; i++) {
-                this.drawChannel(i, "channelVEN");
-                //this.drawChannel(i, "channelFrequency");
-                this.drawChannel(i, "channelPoly");
-            }
-
-            // these only need to be drawn about once a second normally
-            if (frames % 30 == 0) {
-                for (i = 0; i < 32; i++) {
-                    this.drawChannel(i, "channelFrequency");
-                }
-                this.drawDGroup("positionSlider");
-                this.drawDGroup("buffer");
-            }
-
-            t1 = performance.now();
+    public autoRegion(name: string, autoRedraw: boolean = true, callback?: () => any, offsetX?: number, offsetY?: number): HitRegion {
+        var group = this.loader.drawGroups[name];
+        if (group === undefined) {
+            console.error("no group named " + name);
+        } else if (group.length === 0) {
+            console.error("zero length DGroup");
         }
-        console.log("perf test completed");
-        console.log("milliseconds taken: " + (t1 - t0));
-        console.log("frames drawn: " + frames);
-        console.log("average fps: " + frames / (t1 - t0) * 1000);
+        var bounds = <BoundsMetadata>group[group.length - 1];
+        if (bounds === undefined || bounds.length < 5 || bounds[0] !== "bounds") {
+            console.error("incorrect bounds list ", bounds);
+        }
+        var region = new HitRegion(bounds[1], bounds[2], bounds[3], bounds[4]);
+        if (autoRedraw) {
+            var onMouseUp = (e: MouseEvent) => {
+                this.drawDGroup(name, offsetX, offsetY);
+                window.removeEventListener("mouseup", onMouseUp, false);
+            }
+            region.onmousedown.push((x: number, y: number) => {
+                this.drawDGroup(name, offsetX, offsetY);
+                if (callback !== undefined) {
+                    callback();
+                } else {
+                    window.addEventListener("mouseup", onMouseUp, false);
+                }
+            });
+        }
+        this.hitDetector.addHitRegion(region, name);
+        return region;
     }
 
     public renderFrame() {
@@ -767,9 +720,8 @@ class CanvasRenderer {
                 //this.drawChannel(i, "channelFrequency");
                 this.drawChannel(i, "channelPoly");
             }
-            this.framesDrawn++;
 
-            if (this.framesDrawn % 30 === 0) {
+            if (this.framesDrawn++ % 30 === 0) {
                 console.log((this.framesDrawn / (performance.now() - this.drawStartTime) * 1000) + " fps");
             }
         }
