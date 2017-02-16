@@ -143,7 +143,7 @@ var CanvasRenderer = (function () {
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         Object.keys(this.palette).join("\n");
     };
-    CanvasRenderer.prototype.drawButton = function (x, y, w, h, pressed) {
+    CanvasRenderer.prototype.button = function (x, y, w, h, pressed) {
         if (pressed === void 0) { pressed = false; }
         this.ctx.strokeStyle = pressed ? this.palette.background : this.palette.light;
         this.ctx.strokeRect(x + 1.5, y + 1.5, w - 2, h - 2);
@@ -154,14 +154,14 @@ var CanvasRenderer = (function () {
         this.ctx.strokeStyle = this.palette.foreground;
         this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     };
-    CanvasRenderer.prototype.drawFilledRect = function (x, y, w, h, color) {
+    CanvasRenderer.prototype.filledRect = function (x, y, w, h, color) {
         this.ctx.fillStyle = color;
         this.ctx.fillRect(x, y, w, h);
     };
-    CanvasRenderer.prototype.drawImage = function (image, x, y) {
+    CanvasRenderer.prototype.image = function (image, x, y) {
         this.ctx.putImageData(this.loader.getImage(image), x, y);
     };
-    CanvasRenderer.prototype.drawLine = function (x1, y1, x2, y2, color) {
+    CanvasRenderer.prototype.line = function (x1, y1, x2, y2, color) {
         x2 += this.offsetX;
         y2 += this.offsetY;
         this.ctx.strokeStyle = color;
@@ -171,15 +171,15 @@ var CanvasRenderer = (function () {
         this.ctx.lineTo(x2 + 0.5, y2 + 0.5);
         this.ctx.stroke();
     };
-    CanvasRenderer.prototype.drawPbar = function (value, x, y, w, h, color) {
+    CanvasRenderer.prototype.pbar = function (value, x, y, w, h, color) {
         this.ctx.fillStyle = color;
         this.ctx.fillRect(x, y, Math.round(w * value), h);
     };
-    CanvasRenderer.prototype.drawStrokeRect = function (x, y, w, h, color) {
+    CanvasRenderer.prototype.strokeRect = function (x, y, w, h, color) {
         this.ctx.strokeStyle = color;
         this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     };
-    CanvasRenderer.prototype.drawText = function (size, text, x, y, color, rtl, spaceWidth) {
+    CanvasRenderer.prototype.text = function (size, text, x, y, color, rtl, spaceWidth) {
         var font = this.loader.getFont(size);
         if (spaceWidth === undefined) {
             this.loader.getFont(size).drawText(this.ctx, text, x, y, color, rtl);
@@ -190,7 +190,7 @@ var CanvasRenderer = (function () {
             font.spaceWidth = 1;
         }
     };
-    CanvasRenderer.prototype.drawWindow = function (x, y, w, h, title) {
+    CanvasRenderer.prototype.window = function (x, y, w, h, title) {
         // the reason for all this raw ImageData manipulation is to dynamically
         // generate (because of palette changes) the gradients on the sides of
         // the window by scaling the corners' edges all the way across the sides
@@ -259,7 +259,7 @@ var CanvasRenderer = (function () {
     CanvasRenderer.prototype.polyToColor = function (poly) {
         return this.palette.foreground; // TODO
     };
-    CanvasRenderer.prototype.drawPan = function (x, y, val) {
+    CanvasRenderer.prototype.pan = function (x, y, val) {
         for (var i = -8; i <= 8; i++) {
             if (i === 0) {
                 continue;
@@ -280,7 +280,7 @@ var CanvasRenderer = (function () {
             this.ctx.strokeRect(x + (i * 2) + (i > 0 ? 13 : 16) + 0.5, y + 5 - height, 0, height + 1);
         }
     };
-    CanvasRenderer.prototype.drawWaveform = function (x, y, width, color, checkWindow) {
+    CanvasRenderer.prototype.waveform = function (x, y, width, color, checkWindow) {
         this.ctx.fillStyle = color;
         if (this.chan.wave !== null) {
             this.ctx.fillStyle = this.palette.light;
@@ -293,7 +293,7 @@ var CanvasRenderer = (function () {
             }
         }
     };
-    CanvasRenderer.prototype.drawVuMeter = function (x, y, w, h, val) {
+    CanvasRenderer.prototype.vuMeter = function (x, y, w, h, val) {
         for (var i = 0; i < h; i++) {
             this.ctx.fillStyle = val >= (h - i) / h ? this.palette.light : this.palette.dark;
             this.ctx.fillRect(x, y + i * 3, w + 1, 2);
@@ -303,8 +303,8 @@ var CanvasRenderer = (function () {
         var _this = this;
         var x = ((idx % 16) * 36) + 58;
         var y = (Math.floor(idx / 16) * 168) + 49;
-        var region = this.autoRegion("channelMute");
-        region.onmousedown.push(function (x, y) {
+        var region = this.autoRegion("channelMute", false, undefined, x, y);
+        region.onmousedown.unshift(function (x, y) {
             _this.song.channels[idx].mute = !_this.song.channels[idx].mute;
             _this.drawChannel(idx, "channelMute");
             _this.song.channels[idx].volume = 0;
@@ -313,7 +313,6 @@ var CanvasRenderer = (function () {
             _this.song.channels[idx].output = 0;
             _this.drawChannel(idx, "channelVEN");
         });
-        this.hitDetector.addHitRegion(region, "chan" + idx);
     };
     CanvasRenderer.prototype.initPositionHitbox = function () {
         var _this = this;
@@ -333,7 +332,6 @@ var CanvasRenderer = (function () {
             window.addEventListener("mousemove", moveSlider, false);
             window.addEventListener("mouseup", slideEvent, false);
         });
-        this.hitDetector.addHitRegion(slider, "positionSlider");
     };
     CanvasRenderer.prototype.initButtons = function () {
         var _this = this;
@@ -364,6 +362,7 @@ var CanvasRenderer = (function () {
     CanvasRenderer.prototype.initLink = function () {
         var _this = this;
         var link = this.autoRegion("githubLink", false);
+        link.cursor = "pointer";
         link.onmousedown.push(function () {
             window.location.assign("https://github.com/milkey-mouse/JSSCC");
         });
@@ -443,7 +442,7 @@ var CanvasRenderer = (function () {
         // we need to convert the name from lowerCamelCase to UpperCamelCase
         // to put "draw" before it, but otherwise the DObject types have a
         // one-to-one mapping with the draw functions above
-        var func = this["draw" + args[0].charAt(0).toUpperCase() + args[0].substring(1)];
+        var func = this[args[0]];
         if (typeof func === "function") {
             func.apply(this, args.slice(1));
         }
@@ -628,7 +627,12 @@ var CanvasRenderer = (function () {
         if (bounds === undefined || bounds.length < 5 || bounds[0] !== "bounds") {
             console.error("incorrect bounds list ", bounds);
         }
-        var region = new HitRegion(bounds[1], bounds[2], bounds[3], bounds[4]);
+        if (offsetX !== undefined && offsetY !== undefined) {
+            var region = new HitRegion(bounds[1] + offsetX, bounds[2] + offsetY, bounds[3], bounds[4]);
+        }
+        else {
+            var region = new HitRegion(bounds[1], bounds[2], bounds[3], bounds[4]);
+        }
         if (autoRedraw) {
             var onMouseUp = function (e) {
                 _this.drawDGroup(name, offsetX, offsetY);
@@ -890,7 +894,7 @@ var HitDetector = (function () {
     HitDetector.prototype.addHitRegion = function (r, key) {
         if (key === void 0) { key = "region"; }
         if (this.regions[this.namespace][key] !== undefined) {
-            var i = 0;
+            var i = 2;
             while (this.regions[this.namespace][key + i] !== undefined) {
                 i++;
             }

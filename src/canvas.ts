@@ -174,7 +174,7 @@ class CanvasRenderer {
         Object.keys(this.palette).join("\n");
     }
 
-    public drawButton(x: number, y: number, w: number, h: number, pressed: boolean = false): void {
+    public button(x: number, y: number, w: number, h: number, pressed: boolean = false): void {
         this.ctx.strokeStyle = pressed ? this.palette.background : this.palette.light;
         this.ctx.strokeRect(x + 1.5, y + 1.5, w - 2, h - 2);
         this.ctx.strokeStyle = pressed ? this.palette.light : this.palette.foreground;
@@ -185,16 +185,16 @@ class CanvasRenderer {
         this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     }
 
-    public drawFilledRect(x: number, y: number, w: number, h: number, color: string) {
+    public filledRect(x: number, y: number, w: number, h: number, color: string) {
         this.ctx.fillStyle = color;
         this.ctx.fillRect(x, y, w, h);
     }
 
-    public drawImage(image: string, x: number, y: number) {
+    public image(image: string, x: number, y: number) {
         this.ctx.putImageData(this.loader.getImage(image), x, y);
     }
 
-    public drawLine(x1: number, y1: number, x2: number, y2: number, color: string) {
+    public line(x1: number, y1: number, x2: number, y2: number, color: string) {
         x2 += this.offsetX;
         y2 += this.offsetY;
         this.ctx.strokeStyle = color;
@@ -205,17 +205,17 @@ class CanvasRenderer {
         this.ctx.stroke();
     }
 
-    public drawPbar(value: number, x: number, y: number, w: number, h: number, color: string) {
+    public pbar(value: number, x: number, y: number, w: number, h: number, color: string) {
         this.ctx.fillStyle = color;
         this.ctx.fillRect(x, y, Math.round(w * value), h);
     }
 
-    public drawStrokeRect(x: number, y: number, w: number, h: number, color: string) {
+    public strokeRect(x: number, y: number, w: number, h: number, color: string) {
         this.ctx.strokeStyle = color;
         this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     }
 
-    public drawText(size: "small" | "medium" | "large", text: string, x: number, y: number, color: string, rtl?: boolean, spaceWidth?: number) {
+    public text(size: "small" | "medium" | "large", text: string, x: number, y: number, color: string, rtl?: boolean, spaceWidth?: number) {
         var font = this.loader.getFont(size);
         if (spaceWidth === undefined) {
             this.loader.getFont(size).drawText(this.ctx, text, x, y, color, rtl);
@@ -226,7 +226,7 @@ class CanvasRenderer {
         }
     }
 
-    public drawWindow(x: number, y: number, w: number, h: number, title?: string) {
+    public window(x: number, y: number, w: number, h: number, title?: string) {
         // the reason for all this raw ImageData manipulation is to dynamically
         // generate (because of palette changes) the gradients on the sides of
         // the window by scaling the corners' edges all the way across the sides
@@ -306,7 +306,7 @@ class CanvasRenderer {
         return this.palette.foreground; // TODO
     }
 
-    public drawPan(x: number, y: number, val: number | null) {
+    public pan(x: number, y: number, val: number | null) {
         for (var i = -8; i <= 8; i++) {
             if (i === 0) {
                 continue;
@@ -324,7 +324,7 @@ class CanvasRenderer {
         }
     }
 
-    public drawWaveform(x: number, y: number, width: number, color: string, checkWindow?: boolean) {
+    public waveform(x: number, y: number, width: number, color: string, checkWindow?: boolean) {
         this.ctx.fillStyle = color;
         if (this.chan.wave !== null) {
             this.ctx.fillStyle = this.palette.light;
@@ -336,7 +336,7 @@ class CanvasRenderer {
         }
     }
 
-    public drawVuMeter(x: number, y: number, w: number, h: number, val: number) {
+    public vuMeter(x: number, y: number, w: number, h: number, val: number) {
         for (var i = 0; i < h; i++) {
             this.ctx.fillStyle = val >= (h - i) / h ? this.palette.light : this.palette.dark;
             this.ctx.fillRect(x, y + i * 3, w + 1, 2);
@@ -483,10 +483,7 @@ class CanvasRenderer {
         // if the draw is a nop (e.g. don't draw the waveform on a drum channel)
         if (args[0] === "nop" || args[0] === "bounds") { return; }
 
-        // we need to convert the name from lowerCamelCase to UpperCamelCase
-        // to put "draw" before it, but otherwise the DObject types have a
-        // one-to-one mapping with the draw functions above
-        var func = (<any>this)["draw" + <string>(<any>args[0]).charAt(0).toUpperCase() + <string>(<any>args[0]).substring(1)];
+        var func = (<any>this)[<string>(<any>args[0])];
         if (typeof func === "function") {
             func.apply(this, args.slice(1));
         } else {
