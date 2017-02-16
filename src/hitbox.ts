@@ -132,7 +132,7 @@ class HitDetector {
 
     public addHitRegion(r: HitRegion, key: string = "region"): string {
         if (this.regions[this.namespace][key] !== undefined) {
-            var i = 0;
+            var i = 2;
             while (this.regions[this.namespace][key + i] !== undefined) { i++; }
             key = key + i;
         }

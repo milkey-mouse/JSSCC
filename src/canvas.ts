@@ -347,7 +347,7 @@ class CanvasRenderer {
         var x = ((idx % 16) * 36) + 58;
         var y = (Math.floor(idx / 16) * 168) + 49;
 
-        var region = this.autoRegion("channelMute");
+        var region = this.autoRegion("channelMute", false, undefined, x, y);
         region.onmousedown.push((x: number, y: number) => {
             this.song.channels[idx].mute = !this.song.channels[idx].mute;
             this.drawChannel(idx, "channelMute");
@@ -357,7 +357,6 @@ class CanvasRenderer {
             this.song.channels[idx].output = 0;
             this.drawChannel(idx, "channelVEN");
         });
-        this.hitDetector.addHitRegion(region, "chan" + idx);
     }
 
     public initPositionHitbox(): void {
@@ -377,7 +376,6 @@ class CanvasRenderer {
             window.addEventListener("mousemove", moveSlider, false);
             window.addEventListener("mouseup", slideEvent, false);
         });
-        this.hitDetector.addHitRegion(slider, "positionSlider");
     }
 
     public initButtons(): void {
@@ -409,6 +407,7 @@ class CanvasRenderer {
 
     public initLink(): void {
         var link = this.autoRegion("githubLink", false);
+        link.cursor = "pointer";
         link.onmousedown.push(() => {
             window.location.assign("https://github.com/milkey-mouse/JSSCC");
         });
@@ -687,7 +686,11 @@ class CanvasRenderer {
         if (bounds === undefined || bounds.length < 5 || bounds[0] !== "bounds") {
             console.error("incorrect bounds list ", bounds);
         }
-        var region = new HitRegion(bounds[1], bounds[2], bounds[3], bounds[4]);
+        if (offsetX !== undefined && offsetY !== undefined) {
+            var region = new HitRegion(bounds[1] + offsetX, bounds[2] + offsetY, bounds[3], bounds[4]);
+        } else {
+            var region = new HitRegion(bounds[1], bounds[2], bounds[3], bounds[4]);
+        }
         if (autoRedraw) {
             var onMouseUp = (e: MouseEvent) => {
                 this.drawDGroup(name, offsetX, offsetY);
