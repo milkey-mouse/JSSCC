@@ -36,17 +36,14 @@ class HitDetector {
     public scale: number;
     public mouseDown: boolean;
 
-    private namespace: string;
-    private regions: { [name: string]: { [name: string]: HitRegion } };
+    private regions: { [name: string]: HitRegion };
 
     constructor(ctx: CanvasRenderingContext2D) {
         this.mouseDown = false;
         this.ctx = ctx;
         this.scale = 1;
 
-        this.namespace = "default";
         this.regions = {};
-        this.regions[this.namespace] = {};
 
         // use lambdas to have the right context for 'this'
         this.ctx.canvas.addEventListener("mousedown", (e: MouseEvent) => { this.onMouseDown(e); }, false);
@@ -59,8 +56,8 @@ class HitDetector {
         var mouseX: number = event.offsetX / this.scale;
         var mouseY: number = event.offsetY / this.scale;
         this.mouseDown = true;
-        for (var regionName in this.regions[this.namespace]) {
-            let r = this.regions[this.namespace][regionName];
+        for (var regionName in this.regions) {
+            let r = this.regions[regionName];
             if (r !== undefined && r.onmousedown.length > 0 &&
                 mouseY >= r.y && mouseY <= r.y + r.h &&
                 mouseX >= r.x && mouseX <= r.x + r.w) {
@@ -76,8 +73,8 @@ class HitDetector {
         var mouseX: number = event.offsetX / this.scale;
         var mouseY: number = event.offsetY / this.scale;
         this.mouseDown = false;
-        for (var regionName in this.regions[this.namespace]) {
-            let r = this.regions[this.namespace][regionName];
+        for (var regionName in this.regions) {
+            let r = this.regions[regionName];
             if (r !== undefined && r.onmouseup.length > 0 &&
                 mouseY >= r.y && mouseY <= r.y + r.h &&
                 mouseX >= r.x && mouseX <= r.x + r.w) {
@@ -92,8 +89,8 @@ class HitDetector {
         var mouseX: number = event.offsetX / this.scale;
         var mouseY: number = event.offsetY / this.scale;
         this.ctx.canvas.style.cursor = "auto";
-        for (var regionName in this.regions[this.namespace]) {
-            let r = this.regions[this.namespace][regionName];
+        for (var regionName in this.regions) {
+            let r = this.regions[regionName];
             if (r === undefined) { continue; }
             let over = mouseY >= r.y && mouseY <= r.y + r.h &&
                 mouseX >= r.x && mouseX <= r.x + r.w;
@@ -114,16 +111,8 @@ class HitDetector {
         }
     }
 
-    public switchNamespace(ns: string) {
-        // i wish JavaScript had defaultdicts
-        if (this.regions[ns] === undefined) {
-            this.regions[ns] = {};
-        }
-        this.namespace = ns;
-    }
-
     public isOver(name: string) {
-        return this.regions[this.namespace][name] !== undefined && this.regions[this.namespace][name].over;
+        return this.regions[name] !== undefined && this.regions[name].over;
     }
 
     public isDown(name: string) {
@@ -131,20 +120,20 @@ class HitDetector {
     }
 
     public addHitRegion(r: HitRegion, key: string = "region"): string {
-        if (this.regions[this.namespace][key] !== undefined) {
+        if (this.regions[key] !== undefined) {
             var i = 2;
-            while (this.regions[this.namespace][key + i] !== undefined) { i++; }
+            while (this.regions[key + i] !== undefined) { i++; }
             key = key + i;
         }
-        this.regions[this.namespace][key] = r;
+        this.regions[key] = r;
         return key;
     }
 
     public removeHitRegion(key: string): void {
-        delete this.regions[this.namespace][key];
+        delete this.regions[key];
     }
 
     public clearHitRegions(): void {
-        this.regions[this.namespace] = {};
+        this.regions = {};
     }
 }

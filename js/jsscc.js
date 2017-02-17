@@ -1,75 +1,54 @@
 var CanvasRenderer = (function () {
-    function CanvasRenderer() {
+    function CanvasRenderer(loader, song, canvasID, continuouslyRender) {
+        if (loader === void 0) { loader = new AssetLoader("assets/manifest.json"); }
+        if (canvasID === void 0) { canvasID = "content"; }
+        if (continuouslyRender === void 0) { continuouslyRender = true; }
         var _this = this;
-        this.loader = new AssetLoader("assets/manifest.json");
+        this.loader = loader;
         this.initialized = false;
         this.loadEvents = 2;
         this.scale = 1;
+        this.canvasID = canvasID;
         this.paletteName = "default";
         this.palette = this.loader.palettes[this.paletteName];
-        this.song = new Song();
-        this.chan = this.song.channels[0];
+        this.song = song;
+        this.chan = song.channels[0];
         this.offsetX = 0;
         this.offsetY = 0;
-        this.configOpen = false;
-        this.framesDrawn = 0;
-        this.drawStartTime = 0;
-        window.addEventListener("load", function () {
+        this.continuouslyRender = continuouslyRender;
+        var onload = function () {
             _this.loadEvents--;
             _this.initCanvas();
             _this.rescale();
             if (_this.loadEvents === 0) {
-                //defer actual redraw so loading text has time to show up
-                _this.clear();
-                _this.ctx.fillStyle = _this.palette.foreground;
-                _this.ctx.fillText("Loading...", _this.canvas.width / 2, _this.canvas.height / 2);
-                window.setTimeout(function () {
-                    for (var i = 0; i < _this.song.channels.length; i++) {
-                        _this.initChannelHitbox(i);
-                    }
-                    _this.initPositionHitbox();
-                    _this.initButtons();
-                    _this.initLink();
-                    _this.clear();
-                    _this.redraw();
-                    _this.renderFrame();
-                }, 5);
+                _this.firstDraw();
             }
-            else {
-                _this.ctx.fillText("Loading assets...", _this.canvas.width / 2, _this.canvas.height / 2);
-            }
-        }, false);
-        this.loader.onload = function () {
+        };
+        if (document.readyState === "complete") {
+            onload();
+        }
+        else {
+            window.addEventListener("load", onload, false);
+        }
+        this.loader.onload.push(function () {
             _this.loadEvents--;
             _this.switchPalette(Cookies.get("palette", "default"));
             if (_this.loadEvents === 0) {
-                _this.clear();
-                _this.ctx.fillStyle = _this.palette.foreground;
-                _this.ctx.fillText("Loading...", _this.canvas.width / 2, _this.canvas.height / 2);
-                window.setTimeout(function () {
-                    for (var i = 0; i < _this.song.channels.length; i++) {
-                        _this.initChannelHitbox(i);
-                    }
-                    _this.initPositionHitbox();
-                    _this.initButtons();
-                    _this.initLink();
-                    _this.clear();
-                    _this.redraw();
-                    _this.renderFrame();
-                }, 5);
+                _this.firstDraw();
             }
-        };
+        });
     }
-    CanvasRenderer.prototype.switchPalette = function (name, callback) {
+    CanvasRenderer.prototype.firstDraw = function () {
+        this.clear();
+        this.redraw();
+        this.renderFrame();
+    };
+    CanvasRenderer.prototype.switchPalette = function (name) {
         var _this = this;
         if (name === void 0) { name = "default"; }
         if (name !== this.paletteName) {
             Cookies.write("palette", name);
-            if (this.configOpen) {
-                this.closeConfig();
-                this.switchPalette(name, function () { _this.openConfig(); });
-            }
-            else if (this.initialized) {
+            if (this.initialized) {
                 var olddata = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
                 this.clear();
                 this.ctx.fillStyle = this.palette.foreground;
@@ -89,9 +68,6 @@ var CanvasRenderer = (function () {
                         _this.clear();
                         _this.redraw();
                     }
-                    if (callback !== undefined) {
-                        callback();
-                    }
                 }, 10);
             }
             else {
@@ -103,12 +79,13 @@ var CanvasRenderer = (function () {
         }
     };
     CanvasRenderer.prototype.initCanvas = function () {
+        var _this = this;
         if (this.initialized) {
             return;
         }
         document.body.style.backgroundColor = this.palette.background;
-        window.addEventListener("resize", function () { ui.rescale(); }, false);
-        this.canvas = document.getElementById("content");
+        window.addEventListener("resize", function () { _this.rescale(); }, false);
+        this.canvas = document.getElementById(this.canvasID);
         this.canvas.width = 634;
         this.canvas.height = 444;
         var newCtx = this.canvas.getContext("2d");
@@ -141,7 +118,6 @@ var CanvasRenderer = (function () {
         }
         this.ctx.fillStyle = this.palette.background;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        Object.keys(this.palette).join("\n");
     };
     CanvasRenderer.prototype.button = function (x, y, w, h, pressed) {
         if (pressed === void 0) { pressed = false; }
@@ -154,9 +130,16 @@ var CanvasRenderer = (function () {
         this.ctx.strokeStyle = this.palette.foreground;
         this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     };
+    CanvasRenderer.prototype.strokeRect = function (x, y, w, h, color) {
+        this.ctx.strokeStyle = color;
+        this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+    };
     CanvasRenderer.prototype.filledRect = function (x, y, w, h, color) {
         this.ctx.fillStyle = color;
         this.ctx.fillRect(x, y, w, h);
+    };
+    CanvasRenderer.prototype.clearRect = function (x, y, w, h) {
+        this.ctx.clearRect(x, y, w, h);
     };
     CanvasRenderer.prototype.image = function (image, x, y) {
         this.ctx.putImageData(this.loader.getImage(image), x, y);
@@ -174,10 +157,6 @@ var CanvasRenderer = (function () {
     CanvasRenderer.prototype.pbar = function (value, x, y, w, h, color) {
         this.ctx.fillStyle = color;
         this.ctx.fillRect(x, y, Math.round(w * value), h);
-    };
-    CanvasRenderer.prototype.strokeRect = function (x, y, w, h, color) {
-        this.ctx.strokeStyle = color;
-        this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     };
     CanvasRenderer.prototype.text = function (size, text, x, y, color, rtl, spaceWidth) {
         var font = this.loader.getFont(size);
@@ -299,95 +278,21 @@ var CanvasRenderer = (function () {
             this.ctx.fillRect(x, y + i * 3, w + 1, 2);
         }
     };
-    CanvasRenderer.prototype.initChannelHitbox = function (idx) {
-        var _this = this;
-        var x = ((idx % 16) * 36) + 58;
-        var y = (Math.floor(idx / 16) * 168) + 49;
-        var region = this.autoRegion("channelMute", false, undefined, x, y);
-        region.onmousedown.unshift(function (x, y) {
-            _this.song.channels[idx].mute = !_this.song.channels[idx].mute;
-            _this.drawChannel(idx, "channelMute");
-            _this.song.channels[idx].volume = 0;
-            _this.song.channels[idx].expression = 0;
-            _this.song.channels[idx].envelope = 0;
-            _this.song.channels[idx].output = 0;
-            _this.drawChannel(idx, "channelVEN");
-        });
-    };
-    CanvasRenderer.prototype.initPositionHitbox = function () {
-        var _this = this;
-        var slider = this.autoRegion("positionSlider");
-        slider.cursor = "ew-resize";
-        var slideEvent = function (e) {
-            window.removeEventListener("mousemove", moveSlider, false);
-            window.removeEventListener("mouseup", slideEvent, false);
-        };
-        var moveSlider = function (e) {
-            _this.song.position = Math.min(1, Math.max(0, (e.offsetX / _this.scale - 57) / 236));
-            _this.drawDGroup("positionSlider");
-        };
-        slider.onmousedown.push(function (x, y) {
-            _this.song.position = Math.min(1, Math.max(0, (x - 57) / 236));
-            _this.drawDGroup("positionSlider");
-            window.addEventListener("mousemove", moveSlider, false);
-            window.addEventListener("mouseup", slideEvent, false);
-        });
-    };
-    CanvasRenderer.prototype.initButtons = function () {
-        var _this = this;
-        var repeat = this.autoRegion("repeat");
-        repeat.onmouseup.push(function (x, y) {
-            _this.song.repeat = !_this.song.repeat;
-            Cookies.write("loop", _this.song.repeat ? "true" : "false");
-        });
-        this.autoRegion("play").onmouseup.push(function (x, y) {
-            _this.framesDrawn = 0;
-            _this.drawStartTime = performance.now();
-            _this.song.playState = PlayState.PLAYING;
-        });
-        this.autoRegion("fastForward").onmouseup.push(function (x, y) {
-            _this.framesDrawn = 0;
-            _this.drawStartTime = performance.now();
-            _this.song.playState = PlayState.FASTFORWARD;
-        });
-        this.autoRegion("stop").onmouseup.push(function (x, y) {
-            _this.song.playState = PlayState.STOPPED;
-        });
-        this.autoRegion("pause").onmouseup.push(function (x, y) {
-            _this.song.playState = PlayState.PAUSED;
-        });
-        this.autoRegion("config", true, function () { _this.openConfig(); });
-        this.autoRegion("export");
-    };
-    CanvasRenderer.prototype.initLink = function () {
-        var _this = this;
-        var link = this.autoRegion("githubLink", false);
-        link.cursor = "pointer";
-        link.onmousedown.push(function () {
-            window.location.assign("https://github.com/milkey-mouse/JSSCC");
-        });
-        link.onenter.push(function () {
-            _this.drawDGroup("githubLink");
-        });
-        link.onexit.push(function () {
-            _this.drawDGroup("githubLink");
-        });
-    };
-    CanvasRenderer.prototype.drawChannel = function (idx, group, checkWindow) {
+    CanvasRenderer.prototype.drawChannel = function (idx, group) {
         var x = ((idx % 16) * 36) + 58;
         var y = (Math.floor(idx / 16) * 168) + 49;
         this.chan = this.song.channels[idx];
         if (group !== undefined) {
-            this.drawDGroup(group, x, y, checkWindow);
+            this.drawDGroup(group, x, y);
         }
         else {
-            this.drawAllGroupsWithName("channel", x, y, checkWindow);
+            this.drawAllGroupsWithName("channel", x, y);
         }
     };
-    CanvasRenderer.prototype.drawAllGroupsWithName = function (name, x, y, checkWindow) {
+    CanvasRenderer.prototype.drawAllGroupsWithName = function (name, x, y) {
         for (var gn in this.loader.drawGroups) {
             if (typeof gn === "string" && gn.substring(0, name.length) === name) {
-                this.drawDGroup(gn, x, y, checkWindow);
+                this.drawDGroup(gn, x, y);
             }
         }
     };
@@ -439,9 +344,6 @@ var CanvasRenderer = (function () {
         if (args[0] === "nop" || args[0] === "bounds") {
             return;
         }
-        // we need to convert the name from lowerCamelCase to UpperCamelCase
-        // to put "draw" before it, but otherwise the DObject types have a
-        // one-to-one mapping with the draw functions above
         var func = this[args[0]];
         if (typeof func === "function") {
             func.apply(this, args.slice(1));
@@ -450,161 +352,30 @@ var CanvasRenderer = (function () {
             console.warn("unrecognized UI item ", args);
         }
     };
-    CanvasRenderer.prototype.drawDGroup = function (group, offsetX, offsetY, checkWindow) {
-        if (checkWindow === void 0) { checkWindow = this.configOpen; }
+    CanvasRenderer.prototype.drawDGroup = function (group, offsetX, offsetY) {
         if (offsetX !== undefined && offsetY !== undefined) {
             this.offsetX = offsetX;
             this.offsetY = offsetY;
         }
-        // unlike all other groups, the config window can occlude other objects
-        // therefore if it is open on a redraw we must redraw the window as well
-        var redrawPreferencesWindow = false;
         if (typeof group === "string") {
-            if (checkWindow) {
-                redrawPreferencesWindow = (group.substring(0, 11) !== "preferences");
-            }
             group = this.loader.drawGroups[group];
         }
-        else if (checkWindow) {
-            // drawDGroup isn't ever called with DrawObject[] instead of string currently
-            // but let's still handle that case, albeit in a slower way, for completeness
-            // if the group is one of the preferences window groups, skip the redraw
-            redrawPreferencesWindow = true;
-            for (var gn in this.loader.drawGroups) {
-                if (typeof gn === "string" && gn.substring(0, 11) === "preferences") {
-                    if (JSON.stringify(group) === JSON.stringify(this.loader.drawGroups[gn])) {
-                        redrawPreferencesWindow = false;
-                        break;
-                    }
-                }
-            }
+        for (var i = 0; i < group.length; i++) {
+            this.drawDObject(group[i]);
         }
-        var windowGroup;
-        var windowBounds;
-        var windowX;
-        var windowY;
-        if (redrawPreferencesWindow) {
-            windowGroup = this.loader.drawGroups["preferencesWindow"];
-            windowBounds = windowGroup[windowGroup.length - 1].slice(1);
-            windowX = (this.canvas.width - windowBounds[2]) / 2;
-            windowY = (this.canvas.height - windowBounds[3]) / 2;
-            if (group[group.length - 1][0] === "bounds") {
-                // get cached bounds from manifest.json
-                var bounds = group[group.length - 1].slice(1);
-                bounds[0] += this.offsetX;
-                bounds[1] += this.offsetY;
-                // reset the DGroup's area to the background color
-                this.ctx.fillStyle = this.palette.background;
-                this.ctx.fillRect(bounds[0], bounds[1], bounds[2], bounds[3]);
-                // draw the group's objects
-                for (var i = 0; i < group.length; i++) {
-                    this.drawDObject(group[i]);
-                }
-                // draw the semi-transparent overlay
-                this.ctx.fillStyle = "rgba(1, 1, 1, 0.75)";
-                this.ctx.fillRect(bounds[0], bounds[1], bounds[2], bounds[3]);
-                // and now for something completely different:
-                // if the bounds are entirely outside those of all config window bounds,
-                // we'll skip the redraw entirely because its pixels were never affected
-                windowBounds[0] += windowX;
-                windowBounds[1] += windowY;
-                // this code sets redrawPreferencesWindow to false if the rectangles are
-                // not intersecting (see https://stackoverflow.com/a/2752387)
-                redrawPreferencesWindow = !(windowBounds[0] > (bounds[0] + bounds[2]) ||
-                    windowBounds[0] + windowBounds[2] < bounds[0] ||
-                    windowBounds[1] > bounds[1] + bounds[3] ||
-                    windowBounds[1] + windowBounds[3] < bounds[1]);
-                // if they are 100% intersecting (i.e. one is inside the other), skip
-                // drawing the inside object entirely
-                if (redrawPreferencesWindow) {
-                    redrawPreferencesWindow = bounds[0] < windowBounds[0] ||
-                        bounds[1] < windowBounds[1] ||
-                        bounds[0] + bounds[2] > windowBounds[0] + windowBounds[2] ||
-                        bounds[1] + bounds[3] > windowBounds[1] + windowBounds[3];
-                }
-            }
-            else {
-                console.warn("no bounds for group", group);
-            }
-            // reset offsets
-            if (this.offsetX !== 0 || this.offsetY !== 0) {
-                this.offsetX = 0;
-                this.offsetY = 0;
-            }
-            this.drawAllGroupsWithName("preferences", windowX, windowY);
-        }
-        else {
-            for (var i = 0; i < group.length; i++) {
-                this.drawDObject(group[i]);
-            }
-            // reset offsets
-            if (this.offsetX !== 0 || this.offsetY !== 0) {
-                this.offsetX = 0;
-                this.offsetY = 0;
-            }
+        // reset offsets
+        if (this.offsetX !== 0 || this.offsetY !== 0) {
+            this.offsetX = 0;
+            this.offsetY = 0;
         }
     };
     CanvasRenderer.prototype.redraw = function () {
-        // we don't need to redraw the window after every group
-        // so disable the check until the very end (once)
-        //this.drawDGroup("clear", undefined, undefined, false);
         for (var group in this.loader.drawGroups) {
-            this.drawDGroup(group, undefined, undefined, false);
+            this.drawDGroup(group);
         }
         for (var idx = 0; idx < this.song.channels.length; idx++) {
-            this.drawChannel(idx, undefined, false);
+            this.drawChannel(idx);
         }
-        if (this.configOpen) {
-            this.ctx.fillStyle = "rgba(1, 1, 1, 0.75)";
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            this.drawConfig();
-        }
-    };
-    CanvasRenderer.prototype.openConfig = function () {
-        this.configOpen = true;
-        this.hitDetector.switchNamespace("window");
-        this.ctx.fillStyle = "rgba(1, 1, 1, 0.75)";
-        var newBG = AssetLoader.hexToRgb(this.palette.background);
-        if (newBG === null) {
-            return;
-        }
-        newBG.r = Math.round(newBG.r * 0.25);
-        newBG.g = Math.round(newBG.g * 0.25);
-        newBG.b = Math.round(newBG.b * 0.25);
-        document.body.style.backgroundColor = AssetLoader.colorToHex(newBG);
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        this.initConfig();
-        this.drawConfig();
-    };
-    CanvasRenderer.prototype.initConfig = function () {
-        var _this = this;
-        var windowGroup = this.loader.drawGroups["preferencesWindow"];
-        var windowBounds = windowGroup[windowGroup.length - 1].slice(1);
-        var width = windowBounds[2];
-        var height = windowBounds[3];
-        var windowX = (this.canvas.width - width) / 2;
-        var windowY = (this.canvas.height - height) / 2;
-        var close = new HitRegion((this.canvas.width + width) / 2 - 23, windowY + 5, 16, 15);
-        close.onmousedown.push(function () { _this.closeConfig(); });
-        this.hitDetector.addHitRegion(close, "close");
-        this.autoRegion("preferencesColorPalette", true, undefined, windowX, windowY);
-    };
-    CanvasRenderer.prototype.drawConfig = function () {
-        var windowGroup = this.loader.drawGroups["preferencesWindow"];
-        var windowBounds = windowGroup[windowGroup.length - 1].slice(1);
-        var windowX = (this.canvas.width - windowBounds[2]) / 2;
-        var windowY = (this.canvas.height - windowBounds[3]) / 2;
-        this.drawAllGroupsWithName("preferences", windowX, windowY);
-    };
-    CanvasRenderer.prototype.closeConfig = function () {
-        this.configOpen = false;
-        this.hitDetector.switchNamespace("default");
-        this.redraw();
-        document.body.style.backgroundColor = this.palette.background;
-        // the next update for the mouseovers won't run until after this
-        // stuff is drawn, so we have to set the mouseover state manually
-        this.hitDetector.onMouseMove({ offsetX: 0, offsetY: 0 });
-        this.drawDGroup("config");
     };
     CanvasRenderer.prototype.rebakeBounds = function (manifestURL) {
         // channelButton won't render unless the channel is a drum channel
@@ -653,6 +424,9 @@ var CanvasRenderer = (function () {
     };
     CanvasRenderer.prototype.renderFrame = function () {
         var _this = this;
+        if (!this.continuouslyRender) {
+            return;
+        }
         if (this.song.playState === PlayState.PLAYING || this.song.playState === PlayState.FASTFORWARD) {
             var pn = (performance.now() / 1000);
             for (var i = 0; i < 32; i++) {
@@ -663,11 +437,6 @@ var CanvasRenderer = (function () {
                 this.chan.envelope = x;
                 this.chan.output = x;
                 this.drawChannel(i, "channelVEN");
-                //this.drawChannel(i, "channelFrequency");
-                this.drawChannel(i, "channelPoly");
-            }
-            if (this.framesDrawn++ % 30 === 0) {
-                console.log((this.framesDrawn / (performance.now() - this.drawStartTime) * 1000) + " fps");
             }
         }
         window.requestAnimationFrame(function () { _this.renderFrame(); });
@@ -806,9 +575,7 @@ var HitDetector = (function () {
         this.mouseDown = false;
         this.ctx = ctx;
         this.scale = 1;
-        this.namespace = "default";
         this.regions = {};
-        this.regions[this.namespace] = {};
         // use lambdas to have the right context for 'this'
         this.ctx.canvas.addEventListener("mousedown", function (e) { _this.onMouseDown(e); }, false);
         this.ctx.canvas.addEventListener("mousemove", function (e) { _this.onMouseMove(e); }, false);
@@ -821,8 +588,8 @@ var HitDetector = (function () {
         var mouseX = event.offsetX / this.scale;
         var mouseY = event.offsetY / this.scale;
         this.mouseDown = true;
-        for (var regionName in this.regions[this.namespace]) {
-            var r = this.regions[this.namespace][regionName];
+        for (var regionName in this.regions) {
+            var r = this.regions[regionName];
             if (r !== undefined && r.onmousedown.length > 0 &&
                 mouseY >= r.y && mouseY <= r.y + r.h &&
                 mouseX >= r.x && mouseX <= r.x + r.w) {
@@ -839,8 +606,8 @@ var HitDetector = (function () {
         var mouseX = event.offsetX / this.scale;
         var mouseY = event.offsetY / this.scale;
         this.mouseDown = false;
-        for (var regionName in this.regions[this.namespace]) {
-            var r = this.regions[this.namespace][regionName];
+        for (var regionName in this.regions) {
+            var r = this.regions[regionName];
             if (r !== undefined && r.onmouseup.length > 0 &&
                 mouseY >= r.y && mouseY <= r.y + r.h &&
                 mouseX >= r.x && mouseX <= r.x + r.w) {
@@ -854,8 +621,8 @@ var HitDetector = (function () {
         var mouseX = event.offsetX / this.scale;
         var mouseY = event.offsetY / this.scale;
         this.ctx.canvas.style.cursor = "auto";
-        for (var regionName in this.regions[this.namespace]) {
-            var r = this.regions[this.namespace][regionName];
+        for (var regionName in this.regions) {
+            var r = this.regions[regionName];
             if (r === undefined) {
                 continue;
             }
@@ -878,36 +645,29 @@ var HitDetector = (function () {
             }
         }
     };
-    HitDetector.prototype.switchNamespace = function (ns) {
-        // i wish JavaScript had defaultdicts
-        if (this.regions[ns] === undefined) {
-            this.regions[ns] = {};
-        }
-        this.namespace = ns;
-    };
     HitDetector.prototype.isOver = function (name) {
-        return this.regions[this.namespace][name] !== undefined && this.regions[this.namespace][name].over;
+        return this.regions[name] !== undefined && this.regions[name].over;
     };
     HitDetector.prototype.isDown = function (name) {
         return this.mouseDown && this.isOver(name);
     };
     HitDetector.prototype.addHitRegion = function (r, key) {
         if (key === void 0) { key = "region"; }
-        if (this.regions[this.namespace][key] !== undefined) {
+        if (this.regions[key] !== undefined) {
             var i = 2;
-            while (this.regions[this.namespace][key + i] !== undefined) {
+            while (this.regions[key + i] !== undefined) {
                 i++;
             }
             key = key + i;
         }
-        this.regions[this.namespace][key] = r;
+        this.regions[key] = r;
         return key;
     };
     HitDetector.prototype.removeHitRegion = function (key) {
-        delete this.regions[this.namespace][key];
+        delete this.regions[key];
     };
     HitDetector.prototype.clearHitRegions = function () {
-        this.regions[this.namespace] = {};
+        this.regions = {};
     };
     return HitDetector;
 }());
@@ -923,9 +683,9 @@ var ManifestXHRResponse = (function () {
 }());
 var AssetLoader = (function () {
     function AssetLoader(manifest) {
-        if (manifest === void 0) { manifest = "assets/manifest.json"; }
-        this.onload = function () { };
         this.unloadedAssets = 0;
+        this.unloadedManifests = 0;
+        this.onload = [];
         this.drawGroups = {};
         this.images = {};
         this.fonts = {};
@@ -939,8 +699,9 @@ var AssetLoader = (function () {
                 "white": "#ffffff"
             }
         };
-        this.prefix = manifest.substring(0, manifest.lastIndexOf("/"));
-        this.add(manifest);
+        if (manifest !== undefined) {
+            this.add(manifest);
+        }
     }
     AssetLoader.canonicalizePalette = function (p) {
         for (var color in p) {
@@ -982,41 +743,6 @@ var AssetLoader = (function () {
     };
     AssetLoader.rgbToHex = function (r, g, b) {
         return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-    };
-    AssetLoader.prototype.add = function (manifest) {
-        var _this = this;
-        var xhr = new XMLHttpRequest();
-        xhr.addEventListener("readystatechange", function () {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200) {
-                    var resp = JSON.parse(xhr.responseText);
-                    if (resp.palettes !== undefined) {
-                        for (var p in resp.palettes) {
-                            _this.palettes[p] = resp.palettes[p];
-                            AssetLoader.canonicalizePalette(_this.palettes[p]);
-                        }
-                    }
-                    if (resp.images !== undefined) {
-                        _this.unloadedAssets += resp.images.length;
-                        resp.images.forEach(function (img) { _this.loadImage(img, true); }, _this);
-                    }
-                    if (resp.fonts !== undefined) {
-                        _this.unloadedAssets += resp.fonts.length;
-                        resp.fonts.forEach(_this.loadFont, _this);
-                    }
-                    if (resp.drawGroups !== undefined) {
-                        for (var p in resp.drawGroups) {
-                            _this.drawGroups[p] = resp.drawGroups[p];
-                        }
-                    }
-                }
-                else {
-                    console.error("HTTP request for asset manifest failed with code " + xhr.status);
-                }
-            }
-        }, false);
-        xhr.open('GET', manifest, true);
-        xhr.send(null);
     };
     AssetLoader.composite = function (outdata, imgdata, bgdata, inPalette, outPalette) {
         if (inPalette === void 0) { inPalette = {}; }
@@ -1061,6 +787,58 @@ var AssetLoader = (function () {
             }
         }
     };
+    AssetLoader.prototype.add = function (manifest) {
+        var _this = this;
+        this.unloadedManifests++;
+        if (this.prefix === undefined) {
+            this.prefix = manifest.substring(0, manifest.lastIndexOf("/"));
+        }
+        var xhr = new XMLHttpRequest();
+        xhr.addEventListener("readystatechange", function () {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    var resp = JSON.parse(xhr.responseText);
+                    if (resp.palettes !== undefined) {
+                        for (var p in resp.palettes) {
+                            _this.palettes[p] = resp.palettes[p];
+                            AssetLoader.canonicalizePalette(_this.palettes[p]);
+                        }
+                    }
+                    if (resp.images !== undefined) {
+                        _this.unloadedAssets += resp.images.length;
+                        resp.images.forEach(function (img) { _this.loadImage(img, true); }, _this);
+                    }
+                    if (resp.fonts !== undefined) {
+                        _this.unloadedAssets += resp.fonts.length;
+                        resp.fonts.forEach(_this.loadFont, _this);
+                    }
+                    if (resp.drawGroups !== undefined) {
+                        for (var p in resp.drawGroups) {
+                            _this.drawGroups[p] = resp.drawGroups[p];
+                        }
+                    }
+                    _this.unloadedManifests--;
+                }
+                else {
+                    console.error("HTTP request for asset manifest failed with code " + xhr.status);
+                }
+            }
+        }, false);
+        xhr.open('GET', manifest, true);
+        xhr.send(null);
+    };
+    AssetLoader.prototype.createTempCanvas = function () {
+        if (this.tempCanvas == null) {
+            var newCanvas = document.createElement("canvas").getContext("2d");
+            if (typeof newCanvas === "object") {
+                this.tempCanvas = newCanvas;
+            }
+            else {
+                console.error("could not create canvas or context for temp loader");
+                return;
+            }
+        }
+    };
     AssetLoader.prototype.switchPalette = function (oldName, newName) {
         if (oldName !== newName) {
             for (var img in this.images) {
@@ -1080,15 +858,9 @@ var AssetLoader = (function () {
         }
         var img = new Image(); //document.createElement("img");
         img.addEventListener("load", function () {
-            if (_this.tempCanvas == null) {
-                var newCanvas = document.createElement("canvas").getContext("2d");
-                if (typeof newCanvas === "object") {
-                    _this.tempCanvas = newCanvas;
-                }
-                else {
-                    console.error("could not create canvas or context for temp loader");
-                    return;
-                }
+            _this.createTempCanvas();
+            if (_this.tempCanvas === null) {
+                return;
             }
             _this.tempCanvas.canvas.width = img.naturalWidth;
             _this.tempCanvas.canvas.height = img.naturalHeight;
@@ -1100,10 +872,12 @@ var AssetLoader = (function () {
                 callback(name);
             }
             _this.unloadedAssets--;
-            if (_this.unloadedAssets === 0) {
+            if (_this.unloadedAssets === 0 && _this.unloadedManifests === 0) {
                 _this.tempCanvas.canvas.remove();
                 _this.tempCanvas = null;
-                _this.onload();
+                for (var i = 0; i < _this.onload.length; i++) {
+                    _this.onload[i]();
+                }
             }
         }, false);
         img.src = this.prefix + "/" + imagePath;
@@ -1129,16 +903,24 @@ var AssetLoader = (function () {
     AssetLoader.prototype.getFont = function (name) {
         return this.fonts[name];
     };
+    AssetLoader.prototype.clone = function () {
+        var al = new AssetLoader();
+        // shallow copy these since they should be shared
+        al.tempCanvas = this.tempCanvas;
+        al.palettes = this.palettes;
+        al.images = this.images;
+        al.fonts = this.fonts;
+        // don't copy the onload handlers to the clone
+        //al.onload = this.onload;
+        // deep copy the drawGroups because there are side effects to having extraneous
+        // ones (they are redrawn by CanvasRenderer when redraw() is called)
+        al.drawGroups = JSON.parse(JSON.stringify(this.drawGroups));
+        return al;
+    };
     AssetLoader.prototype.exportPalette = function (name) {
-        if (this.tempCanvas == null) {
-            var newCanvas = document.createElement("canvas").getContext("2d");
-            if (typeof newCanvas === "object") {
-                this.tempCanvas = newCanvas;
-            }
-            else {
-                console.error("could not create canvas or context for temp loader");
-                return;
-            }
+        this.createTempCanvas();
+        if (this.tempCanvas === null) {
+            return;
         }
         var colors = [];
         for (var key in this.palettes[name]) {
@@ -1325,10 +1107,157 @@ var Waveform = (function () {
     };
     return Waveform;
 }());
+var JSSCC = (function () {
+    function JSSCC() {
+        var _this = this;
+        this.song = new Song();
+        var loader = new AssetLoader();
+        this.configOpen = false;
+        // load the base manifest & clone the loader for each renderer
+        loader.onload.push(function () {
+            var uiLoader = loader.clone();
+            uiLoader.add("assets/ui.json");
+            _this.renderer = new CanvasRenderer(uiLoader, _this.song);
+            uiLoader.onload.push(function () { _this.addUIHitRegions(); });
+            var configLoader = loader.clone();
+            configLoader.add("assets/config.json");
+            _this.configRenderer = new CanvasRenderer(configLoader, _this.song, "config", false);
+            configLoader.onload.push(function () { _this.addConfigHitRegions(); });
+        });
+        loader.add("assets/base.json");
+    }
+    JSSCC.prototype.addUIHitRegions = function () {
+        var _this = this;
+        var _loop_1 = function () {
+            x = ((i % 16) * 36) + 58;
+            y = (Math.floor(i / 16) * 168) + 49;
+            var chanIdx = i;
+            // add mute button
+            region = this_1.renderer.autoRegion("channelMute", false, undefined, x, y);
+            region.onmousedown.unshift(function (x, y) {
+                _this.song.channels[chanIdx].mute = !_this.song.channels[chanIdx].mute;
+                _this.renderer.drawChannel(chanIdx, "channelMute");
+            });
+        };
+        var this_1 = this, x, y, region;
+        // add channel regions
+        for (var i = 0; i < this.song.channels.length; i++) {
+            _loop_1();
+        }
+        // add position slider (& mouse handling)
+        var positionSliderDG = this.renderer.loader.drawGroups["positionSlider"];
+        var bounds = positionSliderDG[positionSliderDG.length - 1];
+        var slider = this.renderer.autoRegion("positionSlider");
+        slider.cursor = "ew-resize";
+        var slideEvent = function (e) {
+            _this.renderer.canvas.removeEventListener("mousemove", moveSlider, false);
+            window.removeEventListener("mouseup", slideEvent, false);
+        };
+        var moveSlider = function (e) {
+            var x = e.offsetX / _this.renderer.scale;
+            if (x < bounds[1]) {
+                _this.song.position = 0;
+            }
+            else if (x > (bounds[1] + bounds[3])) {
+                _this.song.position = 1;
+            }
+            else {
+                _this.song.position = (x - bounds[1]) / bounds[3];
+            }
+            _this.renderer.drawDGroup("positionSlider");
+        };
+        slider.onmousedown.unshift(function (x, y) {
+            moveSlider({ offsetX: x, offsetY: y });
+            _this.renderer.canvas.addEventListener("mousemove", moveSlider, false);
+            window.addEventListener("mouseup", slideEvent, false);
+        });
+        // Repeat button
+        this.renderer.autoRegion("repeat").onmouseup.push(function (x, y) {
+            _this.song.repeat = !_this.song.repeat;
+            Cookies.write("loop", _this.song.repeat.toString());
+        });
+        // Top buttons (play, pause, etc.)
+        this.renderer.autoRegion("play").onmouseup.push(function (x, y) {
+            _this.song.playState = PlayState.PLAYING;
+        });
+        this.renderer.autoRegion("fastForward").onmouseup.push(function (x, y) {
+            _this.song.playState = PlayState.FASTFORWARD;
+        });
+        this.renderer.autoRegion("stop").onmouseup.push(function (x, y) {
+            _this.song.playState = PlayState.STOPPED;
+        });
+        this.renderer.autoRegion("pause").onmouseup.push(function (x, y) {
+            _this.song.playState = PlayState.PAUSED;
+        });
+        this.renderer.autoRegion("export");
+        this.renderer.autoRegion("config", true, function () { _this.openConfig(); });
+        // GitHub link
+        var link = this.renderer.autoRegion("githubLink", false);
+        link.cursor = "pointer";
+        link.onmousedown.push(function () {
+            window.location.assign("https://github.com/milkey-mouse/JSSCC");
+        });
+        link.onenter.push(function () {
+            _this.renderer.drawDGroup("githubLink");
+        });
+        link.onexit.push(function () {
+            _this.renderer.drawDGroup("githubLink");
+        });
+    };
+    JSSCC.prototype.addConfigHitRegions = function () {
+        var _this = this;
+        var windowGroup = this.configRenderer.loader.drawGroups["preferencesWindow"];
+        var windowBounds = windowGroup[windowGroup.length - 1].slice(1);
+        var width = windowBounds[2];
+        var height = windowBounds[3];
+        var windowX = (this.configRenderer.canvas.width - width) / 2;
+        var windowY = (this.configRenderer.canvas.height - height) / 2;
+        var close = new HitRegion((this.configRenderer.canvas.width + width) / 2 - 23, windowY + 5, 16, 15);
+        close.onmousedown.push(function () { _this.closeConfig(); });
+        this.configRenderer.hitDetector.addHitRegion(close, "close");
+        this.configRenderer.autoRegion("preferencesColorPalette", true, undefined, windowX, windowY);
+    };
+    JSSCC.prototype.openConfig = function () {
+        this.configOpen = true;
+        // show the config window
+        this.configRenderer.canvas.style.visibility = "visible";
+        // set body's background color to that of the overlay
+        var newBG = AssetLoader.hexToRgb(this.configRenderer.palette.background);
+        if (newBG !== null) {
+            newBG.r = Math.round(newBG.r * 0.25);
+            newBG.g = Math.round(newBG.g * 0.25);
+            newBG.b = Math.round(newBG.b * 0.25);
+            document.body.style.backgroundColor = AssetLoader.colorToHex(newBG);
+        }
+        this.configRenderer.drawDGroup("overlay");
+        var windowGroup = this.configRenderer.loader.drawGroups["preferencesWindow"];
+        var windowBounds = windowGroup[windowGroup.length - 1].slice(1);
+        var windowX = (this.configRenderer.canvas.width - windowBounds[2]) / 2;
+        var windowY = (this.configRenderer.canvas.height - windowBounds[3]) / 2;
+        this.configRenderer.drawAllGroupsWithName("preferences", windowX, windowY);
+    };
+    JSSCC.prototype.closeConfig = function () {
+        this.configOpen = false;
+        // hide the config window
+        this.configRenderer.canvas.style.visibility = "hidden";
+        // the next update for the mouseovers won't run until after this
+        // stuff is drawn, so we have to set the mouseover state manually
+        this.renderer.hitDetector.onMouseMove({ offsetX: 0, offsetY: 0 });
+        this.renderer.drawDGroup("config");
+        // reset the background color and rerender the (now unpressed) config button
+        document.body.style.backgroundColor = this.configRenderer.palette.background;
+    };
+    JSSCC.prototype.switchPalette = function (name) {
+        this.renderer.switchPalette(name);
+        this.configRenderer.switchPalette(name);
+    };
+    return JSSCC;
+}());
 /// <reference path="drawobject.ts" />
 /// <reference path="canvas.ts" />
 /// <reference path="cookie.ts" />
 /// <reference path="hitbox.ts" />
 /// <reference path="loader.ts" />
 /// <reference path="song.ts" />
-var ui = new CanvasRenderer();
+/// <reference path="ui.ts" />
+var ui = new JSSCC();

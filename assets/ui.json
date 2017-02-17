@@ -1,49 +1,5 @@
 {
-    "palettes": {
-        "default": {
-            "background": "#df825f",
-            "foreground": "#5c1f09",
-            "dark": "#b2593f",
-            "light": "#ffd2a2",
-            "white": "#fff",
-            "black": "#000"
-        },
-        "gameboy": {
-            "background": "#8bac0f",
-            "foreground": "#0f380f",
-            "dark": "#306230",
-            "light": "#9bbc0f",
-            "white": "#fff",
-            "black": "#000"
-        },
-        "commodore": {
-            "background": "#08f",
-            "foreground": "#00a",
-            "dark": "#333",
-            "light": "#afe",
-            "white": "#fff",
-            "black": "#000"
-        },
-        "lychee": {
-            "background": "#ff8583",
-            "foreground": "#c02",
-            "dark": "#e01d28",
-            "light": "#ffa289",
-            "white": "#ffc6c6",
-            "black": "#660d13"
-        },
-        "hacker": {
-            "background": "#000",
-            "foreground": "#0f0",
-            "dark": "#090",
-            "light": "#060",
-            "white": "#3f0",
-            "black": "#fff"
-        }
-    },
     "images": [
-        "images/dropdown.png",
-        "images/dropdownFlipped.png",
         "images/drum.png",
         "images/gs.png",
         "images/logo.png",
@@ -63,29 +19,7 @@
         "icons/play.png",
         "icons/stop.png",
         "icons/repeat.png",
-        "icons/noRepeat.png",
-        "window/upperLeft.png",
-        "window/upperRight.png",
-        "window/lowerLeft.png",
-        "window/lowerRight.png"
-    ],
-    "fonts": [
-        {
-            "path": "fonts/small.png",
-            "map": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ./':"
-        },
-        {
-            "path": "fonts/medium.png",
-            "map": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,'()+/:-"
-        },
-        {
-            "path": "fonts/large.png",
-            "rowEscapes": [
-                3,
-                4
-            ],
-            "map": "!\"&$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
-        }
+        "icons/noRepeat.png"
     ],
     "note": "Use ui.rebakeBounds() in the JS console to regenerate the bounds entries below.",
     "drawGroups": {
@@ -163,24 +97,6 @@
             ["strokeRect", 20, 151, 11, 5, "&foreground"],
             ["bounds", 0, 149, 34, 10]
         ],
-        "preferencesWindow": [
-            ["window", 0, 0, 200, 250, "Preferences"],
-            ["text", "large", "Color Palette", 12, 35, "&foreground"],
-            ["bounds", 0, 0, 200, 250]
-        ],
-        "preferencesColorPalette": [
-            ["button", 80, 33, 92, 16, true],
-            ["button", 172, 33, 16, 16, "$this.hitDetector.isDown('preferencesColorPalette')"],
-            ["image", "dropdown", 178, 40],
-            ["text", "large", "$this.paletteName", 84, 35, "&white"],
-            ["bounds", 80, 33, 109, 17]
-        ],
-        "preferencesPalettesMenu": [
-            ["image", "dropdownFlipped", 178, 40],
-            ["filledRect", 80, 50, 109, "$this.palette === null ? 0 : Object.keys(this.loader.palettes).length * 14", "light"],
-            ["text", "large", "$this.palette === null ? '' : Object.keys(this.loader.palettes).join('\\n')", 84, 51, "&white"],
-            ["bounds", 80, 40, 109, 80]
-        ],
         "clear": [
             ["filledRect", 0, 0, "$this.canvas.width", "$this.canvas.height", "&background"],
             ["bounds", 0, 0, 634, 444]
@@ -234,8 +150,8 @@
         ],
         "sparkles": [
             ["image", "sparkles", 424, 4],
-            ["text", "medium", "(C) 2016 meme.institute + Milkey Mouse", 453, 4, "&dark"],
-            ["text", "medium", "(C) 2016 meme.institute + Milkey Mouse", 452, 3, "&white"],
+            ["text", "medium", "(C) 2017 meme.institute + Milkey Mouse", 453, 4, "&dark"],
+            ["text", "medium", "(C) 2017 meme.institute + Milkey Mouse", 452, 3, "&white"],
             ["text", "medium", "Inspired by Gashisoft GXSCC", 500, 14, "&dark"],
             ["bounds", 424, 3, 201, 20]
         ],
@@ -313,7 +229,7 @@
             ["bounds", 292, 19, 35, 22]
         ],
         "config": [
-            ["button", 332, 19, 34, 21, "$this.configOpen || this.hitDetector.isDown('config')"],
+            ["button", 332, 19, 34, 21, "$this.hitDetector.isDown('config')"],
             ["image", "config", 342, 22],
             ["bounds", 332, 19, 35, 22]
         ],

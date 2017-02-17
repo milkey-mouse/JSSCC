@@ -1,0 +1,34 @@
+{
+    "images": [
+        "images/dropdown.png",
+        "images/dropdownFlipped.png",
+        "window/upperLeft.png",
+        "window/upperRight.png",
+        "window/lowerLeft.png",
+        "window/lowerRight.png"
+    ],
+    "drawGroups": {
+        "overlay": [
+            ["clearRect", 0, 0, "$this.canvas.width", "$this.canvas.height"],
+            ["filledRect", 0, 0, "$this.canvas.width", "$this.canvas.height", "rgba(0, 0, 0, 0.75)"]
+        ],
+        "preferencesWindow": [
+            ["window", 0, 0, 200, 250, "Preferences"],
+            ["text", "large", "Color Palette", 12, 35, "&foreground"],
+            ["bounds", 0, 0, 200, 250]
+        ],
+        "preferencesColorPalette": [
+            ["button", 80, 33, 92, 16, true],
+            ["button", 172, 33, 16, 16, "$this.hitDetector.isDown('preferencesColorPalette')"],
+            ["image", "dropdown", 178, 40],
+            ["text", "large", "$this.paletteName", 84, 35, "&white"],
+            ["bounds", 80, 33, 109, 17]
+        ],
+        "preferencesPalettesMenu": [
+            ["image", "dropdownFlipped", 178, 40],
+            ["filledRect", 80, 50, 109, "$this.palette === null ? 0 : Object.keys(this.loader.palettes).length * 14", "light"],
+            ["text", "large", "$this.palette === null ? '' : Object.keys(this.loader.palettes).join('\\n')", 84, 51, "&white"],
+            ["bounds", 80, 40, 109, 80]
+        ]
+    }
+}

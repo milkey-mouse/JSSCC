@@ -4,5 +4,7 @@
 /// <reference path="hitbox.ts" />
 /// <reference path="loader.ts" />
 /// <reference path="song.ts" />
+/// <reference path="ui.ts" />
 
-var ui = new CanvasRenderer();
+var ui = new JSSCC();
+

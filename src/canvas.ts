@@ -1,6 +1,7 @@
 class CanvasRenderer {
-    ctx: CanvasRenderingContext2D;
+    canvasID: string;
     canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D;
 
     loader: AssetLoader;
     hitDetector: HitDetector;
@@ -18,89 +19,56 @@ class CanvasRenderer {
     offsetX: number;
     offsetY: number;
 
-    configOpen: boolean;
+    continuouslyRender: boolean;
 
-    framesDrawn: number;
-    drawStartTime: number;
-
-    constructor() {
-        this.loader = new AssetLoader("assets/manifest.json");
+    constructor(loader: AssetLoader = new AssetLoader("assets/manifest.json"), song: Song, canvasID: string = "content", continuouslyRender: boolean = true) {
+        this.loader = loader;
         this.initialized = false;
         this.loadEvents = 2;
         this.scale = 1;
 
+        this.canvasID = canvasID;
         this.paletteName = "default";
         this.palette = this.loader.palettes[this.paletteName];
 
-        this.song = new Song();
+        this.song = song;
+        this.chan = song.channels[0];
 
-        this.chan = this.song.channels[0];
         this.offsetX = 0;
         this.offsetY = 0;
 
-        this.configOpen = false;
+        this.continuouslyRender = continuouslyRender;
 
-        this.framesDrawn = 0;
-        this.drawStartTime = 0;
-
-        window.addEventListener("load", () => {
+        var onload = () => {
             this.loadEvents--;
             this.initCanvas();
             this.rescale();
-            if (this.loadEvents === 0) {
-                //defer actual redraw so loading text has time to show up
-                this.clear();
-                this.ctx.fillStyle = this.palette.foreground;
-                this.ctx.fillText("Loading...", this.canvas.width / 2, this.canvas.height / 2);
-                window.setTimeout(() => {
-                    for (var i = 0; i < this.song.channels.length; i++) {
-                        this.initChannelHitbox(i);
-                    }
+            if (this.loadEvents === 0) { this.firstDraw(); }
+        };
 
-                    this.initPositionHitbox();
-                    this.initButtons();
-                    this.initLink();
+        if (document.readyState === "complete") {
+            onload();
+        } else {
+            window.addEventListener("load", onload, false);
+        }
 
-                    this.clear();
-                    this.redraw();
-                    this.renderFrame();
-                }, 5);
-            } else {
-                this.ctx.fillText("Loading assets...", this.canvas.width / 2, this.canvas.height / 2);
-            }
-        }, false);
-
-        this.loader.onload = () => {
+        this.loader.onload.push(() => {
             this.loadEvents--;
             this.switchPalette(Cookies.get("palette", "default"));
-            if (this.loadEvents === 0) {
-                this.clear();
-                this.ctx.fillStyle = this.palette.foreground;
-                this.ctx.fillText("Loading...", this.canvas.width / 2, this.canvas.height / 2);
-                window.setTimeout(() => {
-                    for (var i = 0; i < this.song.channels.length; i++) {
-                        this.initChannelHitbox(i);
-                    }
-
-                    this.initPositionHitbox();
-                    this.initButtons();
-                    this.initLink();
-
-                    this.clear();
-                    this.redraw();
-                    this.renderFrame();
-                }, 5);
-            }
-        };
+            if (this.loadEvents === 0) { this.firstDraw(); }
+        });
     }
 
-    public switchPalette(name: string = "default", callback?: () => void): void {
+    public firstDraw() {
+        this.clear();
+        this.redraw();
+        this.renderFrame();
+    }
+
+    public switchPalette(name: string = "default"): void {
         if (name !== this.paletteName) {
             Cookies.write("palette", name);
-            if (this.configOpen) {
-                this.closeConfig();
-                this.switchPalette(name, () => { this.openConfig(); });
-            } else if (this.initialized) {
+            if (this.initialized) {
                 var olddata = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
                 this.clear();
                 this.ctx.fillStyle = this.palette.foreground;
@@ -120,9 +88,6 @@ class CanvasRenderer {
                         this.clear();
                         this.redraw();
                     }
-                    if (callback !== undefined) {
-                        callback();
-                    }
                 }, 10);
             } else {
                 this.loader.switchPalette(this.paletteName, name);
@@ -136,8 +101,8 @@ class CanvasRenderer {
     public initCanvas(): void {
         if (this.initialized) { return; }
         document.body.style.backgroundColor = this.palette.background;
-        window.addEventListener("resize", () => { ui.rescale(); }, false);
-        this.canvas = <HTMLCanvasElement>document.getElementById("content");
+        window.addEventListener("resize", () => { this.rescale(); }, false);
+        this.canvas = <HTMLCanvasElement>document.getElementById(this.canvasID);
         this.canvas.width = 634;
         this.canvas.height = 444;
 
@@ -171,7 +136,6 @@ class CanvasRenderer {
         if (!this.initialized) { return; }
         this.ctx.fillStyle = this.palette.background;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        Object.keys(this.palette).join("\n");
     }
 
     public button(x: number, y: number, w: number, h: number, pressed: boolean = false): void {
@@ -185,9 +149,18 @@ class CanvasRenderer {
         this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     }
 
+    public strokeRect(x: number, y: number, w: number, h: number, color: string) {
+        this.ctx.strokeStyle = color;
+        this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+    }
+
     public filledRect(x: number, y: number, w: number, h: number, color: string) {
         this.ctx.fillStyle = color;
         this.ctx.fillRect(x, y, w, h);
+    }
+
+    public clearRect(x: number, y: number, w: number, h: number) {
+        this.ctx.clearRect(x, y, w, h);
     }
 
     public image(image: string, x: number, y: number) {
@@ -208,11 +181,6 @@ class CanvasRenderer {
     public pbar(value: number, x: number, y: number, w: number, h: number, color: string) {
         this.ctx.fillStyle = color;
         this.ctx.fillRect(x, y, Math.round(w * value), h);
-    }
-
-    public strokeRect(x: number, y: number, w: number, h: number, color: string) {
-        this.ctx.strokeStyle = color;
-        this.ctx.strokeRect(x + 0.5, y + 0.5, w, h);
     }
 
     public text(size: "small" | "medium" | "large", text: string, x: number, y: number, color: string, rtl?: boolean, spaceWidth?: number) {
@@ -343,97 +311,21 @@ class CanvasRenderer {
         }
     }
 
-    public initChannelHitbox(idx: number): void {
-        var x = ((idx % 16) * 36) + 58;
-        var y = (Math.floor(idx / 16) * 168) + 49;
-
-        var region = this.autoRegion("channelMute", false, undefined, x, y);
-        region.onmousedown.push((x: number, y: number) => {
-            this.song.channels[idx].mute = !this.song.channels[idx].mute;
-            this.drawChannel(idx, "channelMute");
-            this.song.channels[idx].volume = 0;
-            this.song.channels[idx].expression = 0;
-            this.song.channels[idx].envelope = 0;
-            this.song.channels[idx].output = 0;
-            this.drawChannel(idx, "channelVEN");
-        });
-    }
-
-    public initPositionHitbox(): void {
-        var slider = this.autoRegion("positionSlider");
-        slider.cursor = "ew-resize";
-        var slideEvent = (e: MouseEvent) => {
-            window.removeEventListener("mousemove", moveSlider, false);
-            window.removeEventListener("mouseup", slideEvent, false);
-        };
-        var moveSlider = <EventListener>(e: MouseEvent) => {
-            this.song.position = Math.min(1, Math.max(0, (e.offsetX / this.scale - 57) / 236));
-            this.drawDGroup("positionSlider");
-        };
-        slider.onmousedown.push((x: number, y: number) => {
-            this.song.position = Math.min(1, Math.max(0, (x - 57) / 236));
-            this.drawDGroup("positionSlider");
-            window.addEventListener("mousemove", moveSlider, false);
-            window.addEventListener("mouseup", slideEvent, false);
-        });
-    }
-
-    public initButtons(): void {
-        var repeat = this.autoRegion("repeat");
-        repeat.onmouseup.push((x: number, y: number) => {
-            this.song.repeat = !this.song.repeat;
-            Cookies.write("loop", this.song.repeat ? "true" : "false");
-        });
-
-        this.autoRegion("play").onmouseup.push((x: number, y: number) => {
-            this.framesDrawn = 0;
-            this.drawStartTime = performance.now();
-            this.song.playState = PlayState.PLAYING;
-        });
-        this.autoRegion("fastForward").onmouseup.push((x: number, y: number) => {
-            this.framesDrawn = 0;
-            this.drawStartTime = performance.now();
-            this.song.playState = PlayState.FASTFORWARD;
-        });
-        this.autoRegion("stop").onmouseup.push((x: number, y: number) => {
-            this.song.playState = PlayState.STOPPED;
-        });
-        this.autoRegion("pause").onmouseup.push((x: number, y: number) => {
-            this.song.playState = PlayState.PAUSED;
-        });
-        this.autoRegion("config", true, () => { this.openConfig(); });
-        this.autoRegion("export");
-    }
-
-    public initLink(): void {
-        var link = this.autoRegion("githubLink", false);
-        link.cursor = "pointer";
-        link.onmousedown.push(() => {
-            window.location.assign("https://github.com/milkey-mouse/JSSCC");
-        });
-        link.onenter.push(() => {
-            this.drawDGroup("githubLink");
-        });
-        link.onexit.push(() => {
-            this.drawDGroup("githubLink");
-        });
-    }
-
-    public drawChannel(idx: number, group?: string, checkWindow?: boolean): void {
+    public drawChannel(idx: number, group?: string): void {
         var x = ((idx % 16) * 36) + 58;
         var y = (Math.floor(idx / 16) * 168) + 49;
         this.chan = this.song.channels[idx];
         if (group !== undefined) {
-            this.drawDGroup(group, x, y, checkWindow);
+            this.drawDGroup(group, x, y);
         } else {
-            this.drawAllGroupsWithName("channel", x, y, checkWindow);
+            this.drawAllGroupsWithName("channel", x, y);
         }
     }
 
-    public drawAllGroupsWithName(name: string, x?: number, y?: number, checkWindow?: boolean) {
+    public drawAllGroupsWithName(name: string, x?: number, y?: number) {
         for (var gn in this.loader.drawGroups) {
             if (typeof gn === "string" && gn.substring(0, name.length) === name) {
-                this.drawDGroup(gn, x, y, checkWindow);
+                this.drawDGroup(gn, x, y);
             }
         }
     }
@@ -491,177 +383,34 @@ class CanvasRenderer {
         }
     }
 
-    public drawDGroup(group: DrawObject[] | string, offsetX?: number, offsetY?: number, checkWindow: boolean = this.configOpen) {
+    public drawDGroup(group: DrawObject[] | string, offsetX?: number, offsetY?: number) {
         if (offsetX !== undefined && offsetY !== undefined) {
             this.offsetX = offsetX;
             this.offsetY = offsetY;
         }
 
-        // unlike all other groups, the config window can occlude other objects
-        // therefore if it is open on a redraw we must redraw the window as well
-        var redrawPreferencesWindow = false;
         if (typeof group === "string") {
-            if (checkWindow) { redrawPreferencesWindow = (group.substring(0, 11) !== "preferences"); }
             group = this.loader.drawGroups[group];
-        } else if (checkWindow) {
-            // drawDGroup isn't ever called with DrawObject[] instead of string currently
-            // but let's still handle that case, albeit in a slower way, for completeness
-
-            // if the group is one of the preferences window groups, skip the redraw
-            redrawPreferencesWindow = true;
-            for (var gn in this.loader.drawGroups) {
-                if (typeof gn === "string" && gn.substring(0, 11) === "preferences") {
-                    if (JSON.stringify(group) === JSON.stringify(this.loader.drawGroups[gn])) {
-                        redrawPreferencesWindow = false;
-                        break;
-                    }
-                }
-            }
         }
 
-        var windowGroup: DrawObject[];
-        var windowBounds: number[];
-        var windowX: number;
-        var windowY: number;
+        for (var i = 0; i < group.length; i++) {
+            this.drawDObject(group[i]);
+        }
 
-        if (redrawPreferencesWindow) {
-            windowGroup = this.loader.drawGroups["preferencesWindow"];
-            windowBounds = <number[]>windowGroup[windowGroup.length - 1].slice(1);
-            windowX = (this.canvas.width - windowBounds[2]) / 2;
-            windowY = (this.canvas.height - windowBounds[3]) / 2;
-
-            if (group[group.length - 1][0] === "bounds") {
-                // get cached bounds from manifest.json
-                var bounds = <number[]>group[group.length - 1].slice(1);
-                bounds[0] += this.offsetX;
-                bounds[1] += this.offsetY;
-
-                // reset the DGroup's area to the background color
-                this.ctx.fillStyle = this.palette.background;
-                this.ctx.fillRect(bounds[0], bounds[1], bounds[2], bounds[3]);
-
-                // draw the group's objects
-                for (var i = 0; i < group.length; i++) {
-                    this.drawDObject(group[i]);
-                }
-
-                // draw the semi-transparent overlay
-                this.ctx.fillStyle = "rgba(1, 1, 1, 0.75)";
-                this.ctx.fillRect(bounds[0], bounds[1], bounds[2], bounds[3]);
-
-                // and now for something completely different:
-                // if the bounds are entirely outside those of all config window bounds,
-                // we'll skip the redraw entirely because its pixels were never affected
-                windowBounds[0] += windowX;
-                windowBounds[1] += windowY;
-
-                // this code sets redrawPreferencesWindow to false if the rectangles are
-                // not intersecting (see https://stackoverflow.com/a/2752387)
-                redrawPreferencesWindow = !(windowBounds[0] > (bounds[0] + bounds[2]) ||
-                    windowBounds[0] + windowBounds[2] < bounds[0] ||
-                    windowBounds[1] > bounds[1] + bounds[3] ||
-                    windowBounds[1] + windowBounds[3] < bounds[1]);
-
-                // if they are 100% intersecting (i.e. one is inside the other), skip
-                // drawing the inside object entirely
-                if (redrawPreferencesWindow) {
-                    redrawPreferencesWindow = bounds[0] < windowBounds[0] ||
-                        bounds[1] < windowBounds[1] ||
-                        bounds[0] + bounds[2] > windowBounds[0] + windowBounds[2] ||
-                        bounds[1] + bounds[3] > windowBounds[1] + windowBounds[3];
-                }
-            } else {
-                console.warn("no bounds for group", group);
-            }
-
-            // reset offsets
-            if (this.offsetX !== 0 || this.offsetY !== 0) {
-                this.offsetX = 0;
-                this.offsetY = 0;
-            }
-
-            this.drawAllGroupsWithName("preferences", windowX, windowY);
-        } else {
-            for (var i = 0; i < group.length; i++) {
-                this.drawDObject(group[i]);
-            }
-
-            // reset offsets
-            if (this.offsetX !== 0 || this.offsetY !== 0) {
-                this.offsetX = 0;
-                this.offsetY = 0;
-            }
+        // reset offsets
+        if (this.offsetX !== 0 || this.offsetY !== 0) {
+            this.offsetX = 0;
+            this.offsetY = 0;
         }
     }
 
     public redraw(): void {
-        // we don't need to redraw the window after every group
-        // so disable the check until the very end (once)
-        //this.drawDGroup("clear", undefined, undefined, false);
         for (var group in this.loader.drawGroups) {
-            this.drawDGroup(group, undefined, undefined, false);
+            this.drawDGroup(group);
         }
         for (var idx = 0; idx < this.song.channels.length; idx++) {
-            this.drawChannel(idx, undefined, false);
+            this.drawChannel(idx);
         }
-        if (this.configOpen) {
-            this.ctx.fillStyle = "rgba(1, 1, 1, 0.75)";
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            this.drawConfig();
-        }
-    }
-
-    public openConfig() {
-        this.configOpen = true;
-        this.hitDetector.switchNamespace("window");
-        this.ctx.fillStyle = "rgba(1, 1, 1, 0.75)";
-        var newBG = AssetLoader.hexToRgb(this.palette.background);
-        if (newBG === null) { return; }
-        newBG.r = Math.round(newBG.r * 0.25);
-        newBG.g = Math.round(newBG.g * 0.25);
-        newBG.b = Math.round(newBG.b * 0.25);
-        document.body.style.backgroundColor = AssetLoader.colorToHex(newBG);
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-        this.initConfig();
-        this.drawConfig();
-    }
-
-    public initConfig(): void {
-        var windowGroup = this.loader.drawGroups["preferencesWindow"];
-        var windowBounds = <number[]>windowGroup[windowGroup.length - 1].slice(1);
-        var width = windowBounds[2];
-        var height = windowBounds[3];
-
-        var windowX = (this.canvas.width - width) / 2;
-        var windowY = (this.canvas.height - height) / 2;
-
-        var close = new HitRegion((this.canvas.width + width) / 2 - 23, windowY + 5, 16, 15);
-        close.onmousedown.push(() => { this.closeConfig(); });
-        this.hitDetector.addHitRegion(close, "close");
-
-        this.autoRegion("preferencesColorPalette", true, undefined, windowX, windowY);
-    }
-
-    public drawConfig(): void {
-        var windowGroup = this.loader.drawGroups["preferencesWindow"];
-        var windowBounds = <number[]>windowGroup[windowGroup.length - 1].slice(1);
-        var windowX = (this.canvas.width - windowBounds[2]) / 2;
-        var windowY = (this.canvas.height - windowBounds[3]) / 2;
-        this.drawAllGroupsWithName("preferences", windowX, windowY);
-    }
-
-    public closeConfig(): void {
-        this.configOpen = false;
-
-        this.hitDetector.switchNamespace("default");
-        this.redraw();
-        document.body.style.backgroundColor = this.palette.background;
-
-        // the next update for the mouseovers won't run until after this
-        // stuff is drawn, so we have to set the mouseover state manually
-        this.hitDetector.onMouseMove(<MouseEvent>{ offsetX: 0, offsetY: 0 });
-        this.drawDGroup("config");
     }
 
     public rebakeBounds(manifestURL?: string) {
@@ -707,6 +456,7 @@ class CanvasRenderer {
     }
 
     public renderFrame() {
+        if (!this.continuouslyRender) { return; }
         if (this.song.playState === PlayState.PLAYING || this.song.playState === PlayState.FASTFORWARD) {
             var pn = (performance.now() / 1000);
             for (var i = 0; i < 32; i++) {
@@ -718,11 +468,7 @@ class CanvasRenderer {
                 this.chan.output = x;
                 this.drawChannel(i, "channelVEN");
                 //this.drawChannel(i, "channelFrequency");
-                this.drawChannel(i, "channelPoly");
-            }
-
-            if (this.framesDrawn++ % 30 === 0) {
-                console.log((this.framesDrawn / (performance.now() - this.drawStartTime) * 1000) + " fps");
+                //this.drawChannel(i, "channelPoly");
             }
         }
 

@@ -17,20 +17,24 @@ class ManifestXHRResponse {
 }
 
 class AssetLoader {
+    private unloadedAssets: number;
+    private unloadedManifests: number;
+
     public drawGroups: { [path: string]: DrawObject[] };
     public palettes: { [path: string]: Palette; };
     public images: { [path: string]: ImageData; };
     public fonts: { [path: string]: BitmapFont; };
 
     private tempCanvas: CanvasRenderingContext2D | null;
-    private unloadedAssets: number;
     private prefix: string;
 
-    public onload: () => void;
+    public onload: (() => void)[];
 
-    constructor(manifest: string = "assets/manifest.json") {
-        this.onload = () => { };
+    constructor(manifest?: string) {
         this.unloadedAssets = 0;
+        this.unloadedManifests = 0;
+        this.onload = [];
+
         this.drawGroups = {};
         this.images = {};
         this.fonts = {};
@@ -46,8 +50,9 @@ class AssetLoader {
             }
         };
 
-        this.prefix = manifest.substring(0, manifest.lastIndexOf("/"));
-        this.add(manifest);
+        if (manifest !== undefined) {
+            this.add(manifest);
+        }
     }
 
     public static canonicalizePalette(p: Palette): void {
@@ -95,44 +100,6 @@ class AssetLoader {
         return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
     }
 
-    public add(manifest: string): void {
-        var xhr = new XMLHttpRequest();
-        xhr.addEventListener("readystatechange", () => {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200) {
-                    var resp = <ManifestXHRResponse>JSON.parse(xhr.responseText);
-
-                    if (resp.palettes !== undefined) {
-                        for (var p in resp.palettes) {
-                            this.palettes[p] = resp.palettes[p];
-                            AssetLoader.canonicalizePalette(this.palettes[p]);
-                        }
-                    }
-
-                    if (resp.images !== undefined) {
-                        this.unloadedAssets += resp.images.length;
-                        resp.images.forEach((img) => { this.loadImage(img, true); }, this);
-                    }
-
-                    if (resp.fonts !== undefined) {
-                        this.unloadedAssets += resp.fonts.length;
-                        resp.fonts.forEach(this.loadFont, this);
-                    }
-
-                    if (resp.drawGroups !== undefined) {
-                        for (var p in resp.drawGroups) {
-                            this.drawGroups[p] = resp.drawGroups[p];
-                        }
-                    }
-                } else {
-                    console.error("HTTP request for asset manifest failed with code " + xhr.status);
-                }
-            }
-        }, false);
-        xhr.open('GET', manifest, true);
-        xhr.send(null);
-    }
-
     public static composite(outdata: Uint8ClampedArray, imgdata: Uint8ClampedArray, bgdata: Uint8ClampedArray, inPalette: Palette = <Palette>{}, outPalette: Palette = <Palette>{}): void {
         AssetLoader.canonicalizePalette(inPalette);
 
@@ -174,6 +141,61 @@ class AssetLoader {
         }
     }
 
+    public add(manifest: string): void {
+        this.unloadedManifests++;
+        if (this.prefix === undefined) {
+            this.prefix = manifest.substring(0, manifest.lastIndexOf("/"));
+        }
+        var xhr = new XMLHttpRequest();
+        xhr.addEventListener("readystatechange", () => {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    var resp = <ManifestXHRResponse>JSON.parse(xhr.responseText);
+
+                    if (resp.palettes !== undefined) {
+                        for (var p in resp.palettes) {
+                            this.palettes[p] = resp.palettes[p];
+                            AssetLoader.canonicalizePalette(this.palettes[p]);
+                        }
+                    }
+
+                    if (resp.images !== undefined) {
+                        this.unloadedAssets += resp.images.length;
+                        resp.images.forEach((img) => { this.loadImage(img, true); }, this);
+                    }
+
+                    if (resp.fonts !== undefined) {
+                        this.unloadedAssets += resp.fonts.length;
+                        resp.fonts.forEach(this.loadFont, this);
+                    }
+
+                    if (resp.drawGroups !== undefined) {
+                        for (var p in resp.drawGroups) {
+                            this.drawGroups[p] = resp.drawGroups[p];
+                        }
+                    }
+                    this.unloadedManifests--;
+                } else {
+                    console.error("HTTP request for asset manifest failed with code " + xhr.status);
+                }
+            }
+        }, false);
+        xhr.open('GET', manifest, true);
+        xhr.send(null);
+    }
+
+    public createTempCanvas() {
+        if (this.tempCanvas == null) {
+            var newCanvas = <Object | null>(<HTMLCanvasElement>document.createElement("canvas")).getContext("2d");
+            if (typeof newCanvas === "object") {
+                this.tempCanvas = <CanvasRenderingContext2D>newCanvas;
+            } else {
+                console.error("could not create canvas or context for temp loader");
+                return;
+            }
+        }
+    }
+
     public switchPalette(oldName: string, newName: string): void {
         if (oldName !== newName) {
             for (var img in this.images) {
@@ -191,25 +213,20 @@ class AssetLoader {
         }
         var img = new Image(); //document.createElement("img");
         img.addEventListener("load", () => {
-            if (this.tempCanvas == null) {
-                var newCanvas = <Object | null>(<HTMLCanvasElement>document.createElement("canvas")).getContext("2d");
-                if (typeof newCanvas === "object") {
-                    this.tempCanvas = <CanvasRenderingContext2D>newCanvas;
-                } else {
-                    console.error("could not create canvas or context for temp loader");
-                    return;
-                }
-            }
+            this.createTempCanvas();
+            if (this.tempCanvas === null) { return; }
             this.tempCanvas.canvas.width = img.naturalWidth;
             this.tempCanvas.canvas.height = img.naturalHeight;
             this.tempCanvas.drawImage(img, 0, 0);
             if (save) { this.images[name] = this.tempCanvas.getImageData(0, 0, img.naturalWidth, img.naturalHeight); }
             if (callback != null) { callback(name); }
             this.unloadedAssets--;
-            if (this.unloadedAssets === 0) {
+            if (this.unloadedAssets === 0 && this.unloadedManifests === 0) {
                 this.tempCanvas.canvas.remove();
                 this.tempCanvas = null;
-                this.onload();
+                for (var i = 0; i < this.onload.length; i++) {
+                    this.onload[i]();
+                }
             }
         }, false);
         img.src = this.prefix + "/" + imagePath;
@@ -238,16 +255,28 @@ class AssetLoader {
         return (<any>this.fonts)[name];
     }
 
+    public clone(): AssetLoader {
+        var al = new AssetLoader();
+
+        // shallow copy these since they should be shared
+        al.tempCanvas = this.tempCanvas;
+        al.palettes = this.palettes;
+        al.images = this.images;
+        al.fonts = this.fonts;
+
+        // don't copy the onload handlers to the clone
+        //al.onload = this.onload;
+
+        // deep copy the drawGroups because there are side effects to having extraneous
+        // ones (they are redrawn by CanvasRenderer when redraw() is called)
+        al.drawGroups = JSON.parse(JSON.stringify(this.drawGroups));
+
+        return al;
+    }
+
     public exportPalette(name: string): void {
-        if (this.tempCanvas == null) {
-            var newCanvas = <Object | null>(<HTMLCanvasElement>document.createElement("canvas")).getContext("2d");
-            if (typeof newCanvas === "object") {
-                this.tempCanvas = <CanvasRenderingContext2D>newCanvas;
-            } else {
-                console.error("could not create canvas or context for temp loader");
-                return;
-            }
-        }
+        this.createTempCanvas();
+        if (this.tempCanvas === null) { return; }
         var colors: string[] = [];
         for (var key in this.palettes[name]) { colors.push(key); }
         colors.sort();
